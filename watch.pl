@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use UI::Dialog;
+use Capture::Tiny ':all';
 use Data::Dumper;
 
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
@@ -90,9 +91,16 @@ sub main {
 				$episode_file = qq#"$staffel_ordner/#.splice(@folgen, rand @folgen, 1).q#"#;
 			}
 
-			system("vlc --no-random --play-and-exit $episode_file");
+			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
+			print Dumper @args;
 
-			if ($d->yesno(text => 'Weitere Folge?')) {
+			my ($stdout, $stderr, $exit) = capture {
+				system(@args);
+			};
+
+			print $stderr;
+
+			if($stderr =~ m#NONEXISTANTFILE#) {
 				main();
 			} else {
 				exit;
