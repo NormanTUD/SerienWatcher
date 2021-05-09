@@ -39,11 +39,12 @@ sub main {
 			my $serienordner = "$seriendir/$serie";
 			my $staffel_ordner = undef;
 
-			if(!$staffel) {
-				opendir my $staffeldir, $serienordner or die "Cannot open directory: $!";
-				my @staffeln = grep { /^\d+$/i } readdir $staffeldir;
-				closedir $staffeldir;
+			my @staffeln = ();
+			opendir my $staffeldir, $serienordner or die "Cannot open directory: $!";
+			@staffeln = grep { /^\d+$/i } readdir $staffeldir;
+			closedir $staffeldir;
 
+			if(!$staffel) {
 				my $zufall_unter = 0;
 				if($serie =~ m#die-simpsons#i) {
 					$zufall_unter = 1;
@@ -60,12 +61,19 @@ sub main {
 				if($staffel eq "Zufall") {
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				} elsif($staffel eq "Zufall unter") {
-					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln unter dieser Zahl:",
+					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= Zahl (1):",
 						   entry => int(int(@staffeln) / 2) );
 					@staffeln = grep { $_ <= $unter } @staffeln;
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				}
 				$staffel_ordner = "$serienordner/$staffel";
+			}
+
+			if($staffel =~ m"Zufall unter"i) {
+				my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (2):",
+					   entry => int(int(@staffeln) / 2) );
+				@staffeln = grep { $_ <= $unter } @staffeln;
+				$staffel = splice(@staffeln, rand @staffeln, 1);
 			}
 
 			$staffel_ordner = "$serienordner/$staffel";
