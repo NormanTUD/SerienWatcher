@@ -62,7 +62,7 @@ sub main {
 				if($staffel eq "Zufall") {
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				} elsif($staffel eq "Zufall unter") {
-					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= Zahl (1):",
+					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= Zahl:",
 						   entry => int(int(@staffeln) / 2) );
 					@staffeln = grep { $_ <= $unter } @staffeln;
 					$staffel = splice(@staffeln, rand @staffeln, 1);
@@ -71,7 +71,7 @@ sub main {
 			}
 
 			if($staffel =~ m"Zufall unter"i) {
-				my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (2):",
+				my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl:",
 					   entry => int(int(@staffeln) / 2) );
 				@staffeln = grep { $_ <= $unter } @staffeln;
 				$staffel = splice(@staffeln, rand @staffeln, 1);
