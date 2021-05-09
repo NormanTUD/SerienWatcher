@@ -7,7 +7,7 @@ use Data::Dumper;
 
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
 	height => 35, width => 65 , listheight => 25,
-	order => [ 'zenity', 'whiptail' ] );
+	order => [ 'gdialog', 'zenity', 'whiptail' ] );
 
 my $nas_dir = "$ENV{HOME}/mailserver";
 my $seriendir = "$nas_dir/serien/";
