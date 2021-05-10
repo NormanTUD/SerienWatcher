@@ -9,7 +9,7 @@ use Tie::File;
 
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
 	height => 35, width => 65 , listheight => 25,
-	order => [ 'gdialog', 'zenity', 'whiptail' ] );
+	order => [ 'whiptail', 'gdialog', 'zenity', 'whiptail' ] );
 
 my $nas_dir = "$ENV{HOME}/mailserver";
 my $seriendir = "$nas_dir/serien/";
@@ -22,7 +22,7 @@ my $staffel_unter = undef;
 sub main {
 	if (-d $nas_dir) {
 		if(-d $seriendir) {
-			my $original_staffel;
+			my $original_staffel = $staffel;
 			opendir my $dir, $seriendir or die "Cannot open directory: $!";
 			my @files = grep { -d "$seriendir/$_" && !/^\./ && (!$serie || /$serie/i )} readdir $dir;
 			closedir $dir;
@@ -63,16 +63,18 @@ sub main {
 							map { my $t = $_; $t => [ $t => 0 ] } sort { $a <=> $b } @staffeln
 						]
 					);
+					if($d->rv()) {
+						exit;
+					}
 					$original_staffel = $staffel;
 				}
 
 				if($staffel eq "Zufall") {
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				} elsif($staffel eq "Zufall unter" && !$staffel_unter) {
-					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= Zahl:",
+					$staffel_unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (a):",
 						   entry => int(int(@staffeln) / 2) );
-					$staffel_unter = $unter;
-					@staffeln = grep { $_ <= $unter } @staffeln;
+					@staffeln = grep { $_ <= $staffel_unter } @staffeln;
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				} elsif($staffel eq "Zufall unter" && $staffel_unter) {
 					@staffeln = grep { $_ <= $staffel_unter } @staffeln;
@@ -82,15 +84,14 @@ sub main {
 			}
 
 			if($staffel =~ m"Zufall unter"i) {
-				my $unter = undef;
-				if($staffel_unter) {
-					$unter = $staffel_unter;
-				} else {
-					$unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl:",
+				if(!$staffel_unter) {
+					$staffel_unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (b):",
 						entry => int(int(@staffeln) / 2) );
-					$unter = $staffel_unter;
+					if($d->rv()) {
+						exit;
+					}
 				}
-				@staffeln = grep { $_ <= $unter } @staffeln;
+				@staffeln = grep { $_ <= $staffel_unter } @staffeln;
 				$staffel = splice(@staffeln, rand @staffeln, 1);
 			}
 
@@ -110,19 +111,27 @@ sub main {
 				warn Dumper +{map { $_ => get_time_priorisation("$staffel_ordner/$_") } @folgen};
 				$episode_file = qq#"$staffel_ordner/#.$folgen[0].q#"#;
 				print "Chose $episode_file with prio ".get_time_priorisation(qq#$episode_file#)."\n";
-				#die;
 			}
 
 			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
 
+			my $media_runtime = int(qx(mediainfo --Inform="Video;%Duration%" $episode_file) / 1000);
+
+			my $starttime = scalar time();
 			my ($stdout, $stderr, $exit) = capture {
 				system(@args);
 			};
+			my $endtime = scalar time();
+			my $runtime = $endtime - $starttime;
 
 			print $stderr;
 
 			if($stderr =~ m#NONEXISTANTFILE#) {
-				add_to_db($episode_file);
+				if($runtime >= 0.8 * $media_runtime) {
+					add_to_db($episode_file);
+				} else {
+					warn "$episode_file will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.";
+				}
 				$staffel = $original_staffel;
 				main();
 			} else {
