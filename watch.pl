@@ -103,7 +103,7 @@ sub main {
 
 			my $episode_file = undef;
 
-			if($episode) {
+			if($episode ne "Zufall" && $episode ne "Zufall unter") {
 				$episode_file = "$staffel_ordner/".([grep { /^0+$episode\s/ } @folgen]->[0]);
 			} else {
 				@folgen = sort { get_time_priorisation(qq#$staffel_ordner/$b#) <=> get_time_priorisation(qq#$staffel_ordner/$a#) || rand() <=> rand() } sort { rand() <=> rand() } @folgen;
