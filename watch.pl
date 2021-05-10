@@ -107,19 +107,22 @@ sub main {
 				$episode_file = "$staffel_ordner/".([grep { /^0+$episode\s/ || /$episode/ } @folgen]->[0]);
 			} else {
 				@folgen = sort { get_time_priorisation(qq#$staffel_ordner/$b#) <=> get_time_priorisation(qq#$staffel_ordner/$a#) || rand() <=> rand() } sort { rand() <=> rand() } @folgen;
-				#die Dumper @folgen;
-				warn Dumper +{map { $_ => get_time_priorisation("$staffel_ordner/$_") } @folgen};
+				#warn Dumper +{map { $_ => get_time_priorisation("$staffel_ordner/$_") } @folgen};
 				$episode_file = qq#"$staffel_ordner/#.$folgen[0].q#"#;
 				print "Chose $episode_file with prio ".get_time_priorisation(qq#$episode_file#)."\n";
 			}
 
 
 			$episode_file = q#"#.($episode_file =~ s#"##gr).q#"#;
-			print (qq(mediainfo --Inform="Video;%Duration%" "$episode_file"\n));
-			my $media_runtime = int(qx(mediainfo --Inform="Video;%Duration%" "$episode_file") / 1000);
+
+			my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" $episode_file#;
+			#print "$mediainfo\n";
+			my $media_runtime_string = qx($mediainfo);
+			chomp $media_runtime_string;
+			my $media_runtime = int($media_runtime_string / 1000);
 
 			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
-			print Dumper @args;
+			#print Dumper @args;
 			my $starttime = scalar time();
 			my ($stdout, $stderr, $exit) = capture {
 				system(@args);
@@ -127,13 +130,11 @@ sub main {
 			my $endtime = scalar time();
 			my $runtime = $endtime - $starttime;
 
-			print $stderr;
-
 			if($stderr =~ m#NONEXISTANTFILE#) {
-				if($runtime >= 0.8 * $media_runtime || $ENV{FORCECOUNT}) {
+				if($runtime >= 0.8 * $media_runtime || (exists $ENV{FORCECOUNT} && $ENV{FORCECOUNT} == 1)) {
 					add_to_db($episode_file);
 				} else {
-					warn "$episode_file will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.";
+					warn "$episode_file will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
 				}
 				$staffel = $original_staffel;
 				main();
