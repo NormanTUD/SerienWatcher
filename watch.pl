@@ -128,7 +128,7 @@ sub get_time_priorisation {
 	system("touch $dbfile");
 
 	tie @db, 'Tie::File', $dbfile or die "Error accessing the file $dbfile: $!"; 
-	my $prio = 10000;
+	my $prio = 10 ** 20;
 	my $found = 0;
 	foreach my $i (0 .. $#db) {
 		last if $found;
@@ -137,8 +137,8 @@ sub get_time_priorisation {
 			my ($filename, $time) = ($1, $2);
 			if($filename eq qq#"$episode_file"#) {
 				my $current_time = scalar time();
-				my $watched_days_ago = int(($current_time - $time) / 86400);
-				$prio = $watched_days_ago;
+				my $watched_seconds_ago = int($current_time - $time);
+				$prio = $watched_seconds_ago;
 				$found = 1;
 			}
 		}
