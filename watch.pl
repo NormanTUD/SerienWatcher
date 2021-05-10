@@ -97,14 +97,14 @@ sub main {
 
 			$staffel_ordner = "$serienordner/$staffel";
 
-			opendir my $folgendir, $staffel_ordner or die "Cannot open directory: $!";
+			opendir my $folgendir, $staffel_ordner or die "Cannot open directory $staffel_ordner: $!";
 			my @folgen = grep { /\.mp4$/i } readdir $folgendir;
 			closedir $folgendir;
 
 			my $episode_file = undef;
 
 			if($episode ne "Zufall" && $episode ne "Zufall unter") {
-				$episode_file = "$staffel_ordner/".([grep { /^0+$episode\s/ } @folgen]->[0]);
+				$episode_file = "$staffel_ordner/".([grep { /^0+$episode\s/ || /$episode/ } @folgen]->[0]);
 			} else {
 				@folgen = sort { get_time_priorisation(qq#$staffel_ordner/$b#) <=> get_time_priorisation(qq#$staffel_ordner/$a#) || rand() <=> rand() } sort { rand() <=> rand() } @folgen;
 				#die Dumper @folgen;
@@ -114,9 +114,10 @@ sub main {
 			}
 
 
-			my $media_runtime = int(qx(mediainfo --Inform="Video;%Duration%" $episode_file) / 1000);
+			print (qq(mediainfo --Inform="Video;%Duration%" "$episode_file"\n));
+			my $media_runtime = int(qx(mediainfo --Inform="Video;%Duration%" "$episode_file") / 1000);
 
-			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
+			my @args = (qq#vlc --no-random --play-and-exit "$episode_file" /dev/NONEXISTANTFILE#);
 			my $starttime = scalar time();
 			my ($stdout, $stderr, $exit) = capture {
 				system(@args);
