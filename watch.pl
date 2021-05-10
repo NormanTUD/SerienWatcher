@@ -17,10 +17,12 @@ my $dbfile = "$seriendir/.db.txt";
 my $serie = shift @ARGV // $d->inputbox( text => "Serienname:" );
 my $staffel = shift @ARGV // '';
 my $episode = shift @ARGV // '';
+my $staffel_unter = undef;
 
 sub main {
 	if (-d $nas_dir) {
 		if(-d $seriendir) {
+			my $original_staffel;
 			opendir my $dir, $seriendir or die "Cannot open directory: $!";
 			my @files = grep { -d "$seriendir/$_" && !/^\./ && (!$serie || /$serie/i )} readdir $dir;
 			closedir $dir;
@@ -53,28 +55,41 @@ sub main {
 					$zufall_unter = 1;
 				}
 
-				$staffel = $d->radiolist( text => "Staffel von $serie:",
-					list => [ 
-						"Zufall unter" => ["Zufall unter" => $zufall_unter],
-						"Zufall" => ["Zufall" => !$zufall_unter],
-						map { my $t = $_; $t => [ $t => 0 ] } sort { $a <=> $b } @staffeln
-					]
-				);
+				if(!$staffel) {
+					$staffel = $d->radiolist( text => "Staffel von $serie:",
+						list => [ 
+							"Zufall unter" => ["Zufall unter" => $zufall_unter],
+							"Zufall" => ["Zufall" => !$zufall_unter],
+							map { my $t = $_; $t => [ $t => 0 ] } sort { $a <=> $b } @staffeln
+						]
+					);
+					$original_staffel = $staffel;
+				}
 
 				if($staffel eq "Zufall") {
 					$staffel = splice(@staffeln, rand @staffeln, 1);
-				} elsif($staffel eq "Zufall unter") {
+				} elsif($staffel eq "Zufall unter" && !$staffel_unter) {
 					my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= Zahl:",
 						   entry => int(int(@staffeln) / 2) );
+					$staffel_unter = $unter;
 					@staffeln = grep { $_ <= $unter } @staffeln;
+					$staffel = splice(@staffeln, rand @staffeln, 1);
+				} elsif($staffel eq "Zufall unter" && $staffel_unter) {
+					@staffeln = grep { $_ <= $staffel_unter } @staffeln;
 					$staffel = splice(@staffeln, rand @staffeln, 1);
 				}
 				$staffel_ordner = "$serienordner/$staffel";
 			}
 
 			if($staffel =~ m"Zufall unter"i) {
-				my $unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl:",
-					   entry => int(int(@staffeln) / 2) );
+				my $unter = undef;
+				if($staffel_unter) {
+					$unter = $staffel_unter;
+				} else {
+					$unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl:",
+						entry => int(int(@staffeln) / 2) );
+					$unter = $staffel_unter;
+				}
 				@staffeln = grep { $_ <= $unter } @staffeln;
 				$staffel = splice(@staffeln, rand @staffeln, 1);
 			}
@@ -108,6 +123,7 @@ sub main {
 
 			if($stderr =~ m#NONEXISTANTFILE#) {
 				add_to_db($episode_file);
+				$staffel = $original_staffel;
 				main();
 			} else {
 				exit;
