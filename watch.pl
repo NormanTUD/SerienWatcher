@@ -128,7 +128,7 @@ sub get_time_priorisation {
 	system("touch $dbfile");
 
 	tie @db, 'Tie::File', $dbfile or die "Error accessing the file $dbfile: $!"; 
-	my $prio = 1000;
+	my $prio = 10000;
 	my $found = 0;
 	foreach my $i (0 .. $#db) {
 		last if $found;
