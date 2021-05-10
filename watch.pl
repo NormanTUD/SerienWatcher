@@ -130,7 +130,7 @@ sub main {
 			print $stderr;
 
 			if($stderr =~ m#NONEXISTANTFILE#) {
-				if($runtime >= 0.8 * $media_runtime) {
+				if($runtime >= 0.8 * $media_runtime || $ENV{FORCECOUNT}) {
 					add_to_db($episode_file);
 				} else {
 					warn "$episode_file will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.";
