@@ -113,10 +113,10 @@ sub main {
 				print "Chose $episode_file with prio ".get_time_priorisation(qq#$episode_file#)."\n";
 			}
 
-			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
 
 			my $media_runtime = int(qx(mediainfo --Inform="Video;%Duration%" $episode_file) / 1000);
 
+			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
 			my $starttime = scalar time();
 			my ($stdout, $stderr, $exit) = capture {
 				system(@args);
