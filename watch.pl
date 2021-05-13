@@ -438,8 +438,37 @@ sub touch_dbfile {
 	system($command);
 }
 
+sub program_installed {
+	my $program = shift;
+	debug 0, "program_installed($program)";
+
+	my $exists = 0;
+	my $ret = system(qq#which $program > /dev/null 2> /dev/null#);
+
+	if($ret == 0) {
+		debug 4, "$program already installed";
+		$exists = 1;
+	} else {
+		warn "$program does not seem to be installed. Please install it!";
+	}
+
+	return $exists;
+}
+
+
+sub check_installed_programs {
+	debug 0, "check_installed_programs()";
+
+	foreach (qw/vlc mediainfo whiptail/) {
+		if(!program_installed($_)) {
+			exit(1);
+		}
+	}
+}
+
 sub main () {
 	debug 0, "main()";
+	check_installed_programs();
 	choose_serie;
 
 	while (!-d $options{seriendir}) {
