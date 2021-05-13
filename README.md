@@ -13,7 +13,7 @@ Check `--help` for all options.
 # Dependencies
 
 ```console
-sudo aptitude install vlc
+sudo aptitude install vlc whiptail
 sudo cpan -i Term::ANSIColor
 sudo cpan -i UI::Dialog
 sudo cpan -i Capture::Tiny ':all'
