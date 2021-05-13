@@ -4,6 +4,7 @@ use strict;
 use warnings FATAL => 'all';
 use Data::Dumper;
 
+use Math::Random::Discrete;
 use Term::ANSIColor;
 use UI::Dialog;
 use Capture::Tiny ':all';
@@ -13,6 +14,7 @@ use Memoize;
 
 my %cache;
 memoize 'get_time_priorisation_staffel', SCALAR_CACHE => [HASH => \%cache];
+memoize 'touch_dbfile';
 
 sub error ($;$);
 sub debug ($$);
@@ -41,6 +43,7 @@ my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
 sub error ($;$) {
 	my $message = shift;
 	my $no_exit = shift // 1;
+	debug 0, "error($message, $no_exit)";
 	warn color("red").$message.color("reset")."\n";
 	if($no_exit != 1) {
 		exit 1;
@@ -57,6 +60,7 @@ sub debug ($$) {
 
 sub input {
 	my ($text, $entry) = @_;
+	debug 0, "input($text, $entry)";
 	my $result = $d->inputbox( text => $text, entry => $entry);
 	if($d->rv()) {
 		debug 1, "You chose cancel. Exiting.";
@@ -68,6 +72,7 @@ sub input {
 sub radiolist {
 	my $text = shift;
 	my $list = shift;
+	debug 0, "radiolist($text, \$list)";
 	my $chosen = $d->radiolist(text => $text, list => $list);
 	if($d->rv()) {
 		exit;
@@ -78,6 +83,7 @@ sub radiolist {
 
 sub msg {
 	my $text = shift;
+	debug 0, "msg($text)";
 	$d->msgbox(text => $text);
 }
 
@@ -111,6 +117,8 @@ sub get_subfolders_and_files {
 		grep => sub { !m#^\.#i },
 		@_
 	);
+
+	debug 0, "get_subfolders_and_files(".Dumper(\%par).")";
 
 	opendir my $dirhandle, $par{dir} or error "Cannot open directory: $!";
 	my @result = grep { $par{grep}->($_) } readdir $dirhandle;
@@ -160,6 +168,7 @@ sub analyze_args {
 }
 
 sub choose_serie () {
+	debug 0, "choose_serie()";
 	if(defined $options{serie}) {
 		$options{seriendir} = "$options{maindir}/$options{serie}";
 	}
@@ -185,7 +194,19 @@ sub choose_serie () {
 	$options{seriendir} = "$options{maindir}/$options{serie}";
 }
 
+sub get_weighted_random {
+	debug 0, "get_weighted_random(\@list)";
+	my @list = @_;
+	my @weight = ();
+	foreach (@list) {
+		push @weight, get_time_priorisation_staffel("$options{seriendir}/$_");
+	}
+	my $thing = Math::Random::Discrete->new(\@weight, \@list);
+	return $thing->rand;
+}
+
 sub choose_staffel {
+	debug 0, "choose_staffel()";
 	my @staffeln = ();
 	my $first = 0;
 
@@ -210,7 +231,7 @@ sub choose_staffel {
 			$options{rechoose_staffel} = 1;
 			choose_staffel();
 		} elsif($selection eq "Zufall") {
-			$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
+			$options{staffel} = get_weighted_random(@staffeln);
 			$options{rechoose_staffel} = 1;
 			$options{zufall} = 1;
 		} else {
@@ -219,15 +240,15 @@ sub choose_staffel {
 	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && !defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = get_weighted_random(@staffeln);
 	} elsif (!defined($options{staffel}) && !defined($options{min_staffel}) && defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ <= $options{max_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = get_weighted_random(@staffeln);
 	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} && $_ <= $options{max_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = get_weighted_random(@staffeln);
 	} elsif(defined($options{staffel}) && !defined $options{min_staffel} && !defined($options{max_staffel})) {
 		# do nothing, staffel already specified
 	} else {
@@ -246,10 +267,11 @@ sub choose_staffel {
 
 sub get_time_priorisation ($) {
 	my $episode_file = shift;
+	debug 0, "get_time_priorisation($episode_file)";
 	$episode_file =~ s#"##g;
 	
 	my @db = ();
-	system("touch $options{dbfile}");
+	touch_dbfile();
 
 	tie @db, 'Tie::File', $options{dbfile} or error "Error accessing the file $options{dbfile}: $!"; 
 	my $prio = 10 ** 20;
@@ -273,9 +295,10 @@ sub get_time_priorisation ($) {
 
 sub add_to_db ($) {
 	my $episode_file = shift;
+	debug 0, "add_to_db($episode_file)";
 
 	my @db = ();
-	system("touch $options{dbfile}");
+	touch_dbfile();
 
 	tie @db, 'Tie::File', $options{dbfile} or error "Error accessing the file $options{dbfile}: $!"; 
 	my $found = 0;
@@ -302,6 +325,7 @@ sub add_to_db ($) {
 }
 
 sub get_media_runtime () {
+	debug 0, "get_media_runtime";
 	if(-e $options{current_file}) {
 		my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" "$options{current_file}"#;
 		debug 1, $mediainfo;
@@ -315,6 +339,9 @@ sub get_media_runtime () {
 }
 
 sub play_media () {
+	debug 0, "play_media";
+	choose_staffel();
+	choose_random_file();
 	if(defined $options{current_file} && -e $options{current_file}) {
 		my $media_runtime = get_media_runtime;
 		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
@@ -335,7 +362,7 @@ sub play_media () {
 		my $runtime = $endtime - $starttime;
 
 		if($stderr =~ m#NONEXISTANTFILE#) {
-			if($runtime >= $options{min_percentage_runtime_to_count} * $media_runtime) {
+			if($runtime >= ($options{min_percentage_runtime_to_count} * $media_runtime) || ($media_runtime >= 120 && $runtime > 30) || exists $ENV{FORCECOUNT}) {
 				add_to_db($options{current_file});
 			} else {
 				warn "$options{current_file} will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
@@ -350,26 +377,24 @@ sub play_media () {
 	}
 }
 
-
-sub choose_random_file () {
-	my @episodes = get_subfolders_and_files(dir => $options{staffeldir}, grep => sub { m#\.mp4$# });
-	my @serien_sorted = sort { $b->{prio} <=> $a->{prio} || rand() <=> rand() } map { +{file => $_, prio => get_time_priorisation("$options{staffeldir}/$_")} } @episodes;
-	debug 3, Dumper @serien_sorted;
-	$options{current_file} = $options{staffeldir}.'/'.[@serien_sorted]->[0]->{file};
+sub choose_random_file {
+	debug 0, "choose_random_file()";
+	my @list = map { "$options{staffeldir}/$_" } get_subfolders_and_files(dir => $options{staffeldir}, grep => sub { m#\.mp4$# });
+	my @weight = ();
+	foreach (@list) {
+		push @weight, get_time_priorisation("$options{seriendir}/$_");
+	}
+	my $thing = Math::Random::Discrete->new(\@weight, \@list);
+	$options{current_file} = $thing->rand;
 	debug 1, "Chose $options{current_file} (prio: ".get_time_priorisation("$options{current_file}").")";
-}
-
-sub get_time_priorisation_staffeln {
-	my ($x, $y) = @_;
-
-	return (get_time_priorisation_staffel($y) <=> get_time_priorisation_staffel($x));
 }
 
 sub get_time_priorisation_staffel {
 	my $dir = shift;
+	debug 0, "get_time_priorisation($dir)";
 	my @files = ();
 
-	system("touch $options{dbfile}");
+	touch_dbfile();
 
 	my $sum = 0;
 
@@ -406,16 +431,20 @@ sub get_time_priorisation_staffel {
 	return $sum;
 }
 
+sub touch_dbfile {
+	debug 0, "touch_dbfile()";
+	my $command = "touch $options{dbfile}";
+	debug 1, $command;
+	system($command);
+}
+
 sub main () {
+	debug 0, "main()";
 	choose_serie;
 
 	while (!-d $options{seriendir}) {
 		choose_serie;
 	}
-	
-	choose_staffel();
-
-	choose_random_file;
 
 	play_media while(1);
 }

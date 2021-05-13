@@ -19,4 +19,5 @@ sudo cpan -i UI::Dialog
 sudo cpan -i Capture::Tiny ':all'
 sudo cpan -i Data::Dumper
 sudo cpan -i Tie::File
+sudo cpan -i Math::Random::Discrete
 ```
