@@ -106,7 +106,7 @@ sub get_subfolders_and_files {
 		@_
 	);
 
-	opendir my $dirhandle, $par{dir} or die "Cannot open directory: $!";
+	opendir my $dirhandle, $par{dir} or error "Cannot open directory: $!";
 	my @result = grep { $par{grep}->($_) } readdir $dirhandle;
 	closedir $dirhandle;
 	return sort { ($a =~ m#^\d$# && $b =~ m#^\d$# ) ? $a <=> $b : $a cmp $b } @result;
@@ -185,6 +185,7 @@ sub choose_staffel {
 		if($selection eq "Zufall unter") {
 			$options{min_staffel} = [sort { $a <=> $b } @staffeln]->[0];
 			$options{max_staffel} = input("Staffel unter:");
+			$options{rechoose_staffel} = 1;
 			choose_staffel();
 		} else {
 			$options{staffel} = $selection;
@@ -223,7 +224,7 @@ sub get_time_priorisation ($) {
 	my @db = ();
 	system("touch $options{dbfile}");
 
-	tie @db, 'Tie::File', $options{dbfile} or die "Error accessing the file $options{dbfile}: $!"; 
+	tie @db, 'Tie::File', $options{dbfile} or error "Error accessing the file $options{dbfile}: $!"; 
 	my $prio = 10 ** 20;
 	my $found = 0;
 	foreach my $i (0 .. $#db) {
@@ -249,7 +250,7 @@ sub add_to_db ($) {
 	my @db = ();
 	system("touch $options{dbfile}");
 
-	tie @db, 'Tie::File', $options{dbfile} or die "Error accessing the file $options{dbfile}: $!"; 
+	tie @db, 'Tie::File', $options{dbfile} or error "Error accessing the file $options{dbfile}: $!"; 
 	my $found = 0;
 	my $i = 0;
 	foreach my $line (@db) {
@@ -273,19 +274,23 @@ sub add_to_db ($) {
 	}
 }
 
-sub get_media_runtime ($) {
-	my $episode_file = shift;
-	my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" "$episode_file"#;
-	debug 1, $mediainfo;
-	my $media_runtime_string = qx($mediainfo);
-	chomp $media_runtime_string;
-	my $media_runtime = int($media_runtime_string / 1000);
+sub get_media_runtime () {
+	if(-e $options{current_file}) {
+		my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" "$options{current_file}"#;
+		debug 1, $mediainfo;
+		my $media_runtime_string = qx($mediainfo);
+		chomp $media_runtime_string;
+		my $media_runtime = int($media_runtime_string / 1000);
+		return $media_runtime;
+	} else {
+		error "$options{current_file} is not a file";
+	}
 }
 
 sub play_media () {
 	if(defined $options{current_file} && -e $options{current_file}) {
-		my $media_runtime = get_media_runtime $options{current_file};
-		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
+		my $media_runtime = get_media_runtime;
+		my $play = qq#vlc --fullscreen --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
