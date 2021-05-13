@@ -1,162 +1,229 @@
 #!/usr/bin/perl
 
 use strict;
-use warnings;
+use warnings FATAL => 'all';
+use Data::Dumper;
+
+use Term::ANSIColor;
 use UI::Dialog;
 use Capture::Tiny ':all';
 use Data::Dumper;
 use Tie::File;
 
+sub error ($;$);
+sub debug ($$);
+
+my %options = (
+	debug => 0,
+	play => 1,
+	debuglevel => 1,
+	maindir => undef,
+	serie => undef,
+	staffel => undef,
+	min_staffel => undef,
+	max_staffel => undef,
+	seriendir => undef,
+	staffeldir => undef,
+	min_percentage_runtime_to_count => 0.8,
+	current_file => undef,
+	dbfile => undef
+);
+
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
 	height => 35, width => 65 , listheight => 25,
 	order => [ 'whiptail', 'gdialog', 'zenity', 'whiptail' ] );
 
-my $nas_dir = "$ENV{HOME}/mailserver";
-my $seriendir = "$nas_dir/serien/";
-my $dbfile = "$seriendir/.db.txt";
-my $serie = shift @ARGV // $d->inputbox( text => "Serienname:" );
-my $staffel = shift @ARGV // '';
-my $episode = shift @ARGV // '';
-my $staffel_unter = undef;
-
-sub main {
-	if (-d $nas_dir) {
-		if(-d $seriendir) {
-			my $original_staffel = $staffel;
-			opendir my $dir, $seriendir or die "Cannot open directory: $!";
-			my @files = grep { -d "$seriendir/$_" && !/^\./ && (!$serie || /$serie/i )} readdir $dir;
-			closedir $dir;
-
-			my $choose_first = 0;
-
-			if (@files > 1) {
-				$serie = $d->radiolist( text => 'Serie waehlen:',
-					list => [ 
-						map { my $t = $_; $t => [ $t => ++$choose_first == 1 ] } @files
-					]
-				);
-			} elsif (@files == 1) {
-				$serie = $files[0];
-			} else {
-				$d->msgbox( text => 'Serie nicht gefunden' );
-			}
-
-			my $serienordner = "$seriendir/$serie";
-			my $staffel_ordner = undef;
-
-			my @staffeln = ();
-			opendir my $staffeldir, $serienordner or die "Cannot open directory: $!";
-			@staffeln = grep { /^\d+$/i } readdir $staffeldir;
-			closedir $staffeldir;
-
-			if(!$staffel) {
-				my $zufall_unter = 0;
-				if($serie =~ m#die-simpsons#i) {
-					$zufall_unter = 1;
-				}
-
-				if(!$staffel) {
-					$staffel = $d->radiolist( text => "Staffel von $serie:",
-						list => [ 
-							"Zufall unter" => ["Zufall unter" => $zufall_unter],
-							"Zufall" => ["Zufall" => !$zufall_unter],
-							map { my $t = $_; $t => [ $t => 0 ] } sort { $a <=> $b } @staffeln
-						]
-					);
-					if($d->rv()) {
-						exit;
-					}
-					$original_staffel = $staffel;
-				}
-
-				if($staffel eq "Zufall") {
-					$staffel = splice(@staffeln, rand @staffeln, 1);
-				} elsif($staffel eq "Zufall unter" && !$staffel_unter) {
-					$staffel_unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (a):",
-						   entry => int(int(@staffeln) / 2) );
-					@staffeln = grep { $_ <= $staffel_unter } @staffeln;
-					$staffel = splice(@staffeln, rand @staffeln, 1);
-				} elsif($staffel eq "Zufall unter" && $staffel_unter) {
-					@staffeln = grep { $_ <= $staffel_unter } @staffeln;
-					$staffel = splice(@staffeln, rand @staffeln, 1);
-				}
-				$staffel_ordner = "$serienordner/$staffel";
-			}
-
-			if($staffel =~ m"Zufall unter"i) {
-				if(!$staffel_unter) {
-					$staffel_unter = $d->inputbox( text => "Waehle zufaellige Staffeln <= dieser Zahl (b):",
-						entry => int(int(@staffeln) / 2) );
-					if($d->rv()) {
-						exit;
-					}
-				}
-				@staffeln = grep { $_ <= $staffel_unter } @staffeln;
-				$staffel = splice(@staffeln, rand @staffeln, 1);
-			}
-
-			$staffel_ordner = "$serienordner/$staffel";
-
-			opendir my $folgendir, $staffel_ordner or die "Cannot open directory $staffel_ordner: $!";
-			my @folgen = grep { /\.mp4$/i } readdir $folgendir;
-			closedir $folgendir;
-
-			my $episode_file = undef;
-
-			if($episode ne "Zufall" && $episode ne "Zufall unter") {
-				$episode_file = "$staffel_ordner/".([grep { /^0+$episode\s/ || /$episode/ } @folgen]->[0]);
-			} else {
-				@folgen = sort { get_time_priorisation(qq#$staffel_ordner/$b#) <=> get_time_priorisation(qq#$staffel_ordner/$a#) || rand() <=> rand() } sort { rand() <=> rand() } @folgen;
-				#warn Dumper +{map { $_ => get_time_priorisation("$staffel_ordner/$_") } @folgen};
-				$episode_file = qq#"$staffel_ordner/#.$folgen[0].q#"#;
-				print "Chose $episode_file with prio ".get_time_priorisation(qq#$episode_file#)."\n";
-			}
-
-
-			$episode_file = q#"#.($episode_file =~ s#"##gr).q#"#;
-
-			my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" $episode_file#;
-			#print "$mediainfo\n";
-			my $media_runtime_string = qx($mediainfo);
-			chomp $media_runtime_string;
-			my $media_runtime = int($media_runtime_string / 1000);
-
-			my @args = (qq#vlc --no-random --play-and-exit $episode_file /dev/NONEXISTANTFILE#);
-			#print Dumper @args;
-			my $starttime = scalar time();
-			my ($stdout, $stderr, $exit) = capture {
-				system(@args);
-			};
-			my $endtime = scalar time();
-			my $runtime = $endtime - $starttime;
-
-			if($stderr =~ m#NONEXISTANTFILE#) {
-				if($runtime >= 0.8 * $media_runtime || (exists $ENV{FORCECOUNT} && $ENV{FORCECOUNT} == 1)) {
-					add_to_db($episode_file);
-				} else {
-					warn "$episode_file will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
-				}
-				$staffel = $original_staffel;
-				main();
-			} else {
-				exit;
-			}
-		} else {
-			die "$seriendir not found";
-		}
-	} else {
-		die "$nas_dir not found";
+sub error ($;$) {
+	my $message = shift;
+	my $no_exit = shift // 1;
+	warn color("red").$message.color("reset")."\n";
+	if($no_exit != 1) {
+		exit 1;
 	}
 }
 
-sub get_time_priorisation {
+sub debug ($$) {
+	my $debuglevel = shift;
+	my $text = shift;
+	if($options{debug} && $options{debuglevel} >= $debuglevel) {
+		warn "DEBUG: ".color("blue on_white").$text.color("reset")."\n";
+	}
+}
+
+sub input {
+	my ($text, $entry) = @_;
+	my $result = $d->inputbox( text => $text, entry => $entry);
+	if($d->rv()) {
+		debug 1, "You chose cancel. Exiting.";
+		exit();
+	}
+	return $result;
+}
+
+sub radiolist {
+	my $text = shift;
+	my $list = shift;
+	my $chosen = $d->radiolist(text => $text, list => $list);
+	if($d->rv()) {
+		exit;
+	}
+
+	return $chosen;
+}
+
+sub msg {
+	my $text = shift;
+	$d->msgbox(text => $text);
+}
+
+sub _help {
+	my $exit = shift // 0;
+	my $message = shift // undef;
+	error $message if(defined($message));
+
+	my ($green, $reset) = (color("green"), color("reset"));
+
+	print <<EOF;
+Example call:
+${green}perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simpsons --min_staffel=1 --max_staffel=14 --min_percentage_runtime_to_count=0.8${reset}
+--debug                                                       Enable debug
+--debuglevel=4                                                Level of debug messages
+--noplay                                                      Disable VLC starting (only useful for debugging)
+--maindir=/path/to/maindir                                    Maindir
+--serie=Serienregex                                           Serienname
+--staffel=1                                                   Staffel
+--min_staffel=0                                               Minimal staffel to choose from (cannot be combined with --staffel)
+--max_staffel=10                                              Maximal staffel to choose from (cannot be combined with --staffel)
+--min_percentage_runtime_to_count=$options{min_percentage_runtime_to_count}                           Minimal percentage for the play to be counted (between 0 and 1)
+EOF
+	exit $exit;
+}
+
+sub get_subfolders_and_files {
+	my %par = (
+		dir => undef,
+		grep => sub { !m#^\.#i },
+		@_
+	);
+
+	opendir my $dirhandle, $par{dir} or die "Cannot open directory: $!";
+	my @result = grep { $par{grep}->($_) } readdir $dirhandle;
+	closedir $dirhandle;
+	return sort { ($a =~ m#^\d$# && $b =~ m#^\d$# ) ? $a <=> $b : $a cmp $b } @result;
+}
+
+sub analyze_args {
+	foreach (@_) {
+		if(m#^--debug$#) {
+			$options{debug} = 1;
+		} elsif(m#^--debuglevel=(.*)$#) {
+			$options{debuglevel} = $1;
+		} elsif(m#^--noplay$#) {
+			$options{play} = 0;
+		} elsif(m#^--maindir=(.*)$#) {
+			my $maindir = $1;
+			if(-d $maindir) {
+				$options{maindir} = $maindir;
+			} else {
+				error "--maindir $maindir not found", 0;
+			}
+		} elsif(m#^--serie=(.*)$#) {
+			$options{serie} = $1;
+		} elsif(m#^--staffel=(.*)$#) {
+			$options{staffel} = $1;
+		} elsif(m#^--min_staffel=(.*)$#) {
+			$options{min_staffel} = $1;
+		} elsif(m#^--max_staffel=(.*)$#) {
+			$options{max_staffel} = $1;
+		} elsif(m#^--min_percentage_runtime_to_count=(.*)$#) {
+			$options{min_percentage_runtime_to_count} = $1;
+		} elsif (m#^--help$#) {
+			_help(0);
+		} else {
+			_help(1, "Unknown parameter: $_");				
+		}
+	}
+
+	if(!defined($options{maindir})) {
+		error "--maindir cannot stay empty", 0;
+	}
+
+	$options{dbfile} = "$options{maindir}/.db.txt";
+}
+
+sub choose_serie () {
+	$options{seriendir} = "$options{maindir}/$options{serie}";
+
+	if(!$options{serie} || !-d $options{seriendir}) {
+		my @serien = get_subfolders_and_files(dir => $options{maindir}, grep => sub { m#\Q$options{serie}\E#i });
+		my $first = 0;
+		if(@serien == 1) {
+			$options{serie} = $serien[0];
+		} elsif (@serien == 0) {
+			msg "Mit dem Regex /$options{serie}/ konnten keine Serien gefunden werden.";
+			@serien = get_subfolders_and_files(dir => $options{maindir});
+			$options{serie} = radiolist("Waehle Serie: ", [map { $_ => [$_ => !$first++] } @serien ]);
+		} else {
+			$options{serie} = radiolist("Waehle Serie: ", [map { $_ => [$_ => !$first++] } @serien ]);
+		}
+	}
+
+	$options{seriendir} = "$options{maindir}/$options{serie}";
+}
+
+sub choose_staffel {
+	my @staffeln = ();
+	my $first = 0;
+
+	if($options{rechoose_staffel}) {
+		$options{staffel} = undef;
+	}
+
+	if(!defined($options{staffel}) && !defined $options{min_staffel} && !defined($options{max_staffel})) {
+		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" });
+		my $selection = radiolist("Waehle Staffel fuer $options{serie}: ", [ "Zufall unter" => ["Zufall unter", 0], map { $_ => [$_ => !$first++] } @staffeln ]);
+		if($selection eq "Zufall unter") {
+			$options{min_staffel} = [sort { $a <=> $b } @staffeln]->[0];
+			$options{max_staffel} = input("Staffel unter:");
+			choose_staffel();
+		} else {
+			$options{staffel} = $selection;
+		}
+	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && !defined($options{max_staffel})) {
+		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} });
+		$options{rechoose_staffel} = 1;
+		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+	} elsif (!defined($options{staffel}) && !defined($options{min_staffel}) && defined($options{max_staffel})) {
+		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ <= $options{max_staffel} });
+		$options{rechoose_staffel} = 1;
+		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && defined($options{max_staffel})) {
+		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} && $_ <= $options{max_staffel} });
+		$options{rechoose_staffel} = 1;
+		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+	} elsif(defined($options{staffel}) && !defined $options{min_staffel} && !defined($options{max_staffel})) {
+		# do nothing, staffel already specified
+	} else {
+		error "Cannot choose specific staffel and then use --max_staffel and/or --min_staffel at the same time", 0;
+	}
+
+	debug 2, Dumper \%options;
+
+	$options{staffeldir} = "$options{seriendir}/$options{staffel}";
+
+	if(!-d $options{staffeldir}) {
+		error "$options{staffeldir} is not a directory";
+	}
+}
+
+sub get_time_priorisation ($) {
 	my $episode_file = shift;
 	$episode_file =~ s#"##g;
 	
 	my @db = ();
-	system("touch $dbfile");
+	system("touch $options{dbfile}");
 
-	tie @db, 'Tie::File', $dbfile or die "Error accessing the file $dbfile: $!"; 
+	tie @db, 'Tie::File', $options{dbfile} or die "Error accessing the file $options{dbfile}: $!"; 
 	my $prio = 10 ** 20;
 	my $found = 0;
 	foreach my $i (0 .. $#db) {
@@ -164,7 +231,7 @@ sub get_time_priorisation {
 		my $line = $db[$i];
 		if($line =~ m#(.*):::(.*)#) {
 			my ($filename, $time) = ($1, $2);
-			if($filename eq qq#"$episode_file"#) {
+			if($episode_file =~ m#$filename#) {
 				my $current_time = scalar time();
 				my $watched_seconds_ago = int($current_time - $time);
 				$prio = $watched_seconds_ago;
@@ -173,18 +240,16 @@ sub get_time_priorisation {
 		}
 	}
 
-	#die "$episode_file not found" unless $found;
-
 	return $prio;
 }
 
-sub add_to_db {
+sub add_to_db ($) {
 	my $episode_file = shift;
 
 	my @db = ();
-	system("touch $dbfile");
+	system("touch $options{dbfile}");
 
-	tie @db, 'Tie::File', $dbfile or die "Error accessing the file $dbfile: $!"; 
+	tie @db, 'Tie::File', $options{dbfile} or die "Error accessing the file $options{dbfile}: $!"; 
 	my $found = 0;
 	my $i = 0;
 	foreach my $line (@db) {
@@ -196,9 +261,9 @@ sub add_to_db {
 				$db[$i] = $episode_file.":::".(scalar time())."\n";
 			}
 		} elsif(!$line) {
-			warn "Empty line in $dbfile";
+			warn "Empty line in $options{dbfile}";
 		} elsif($line) {
-			warn "Invalid line $line in $dbfile";
+			warn "Invalid line $line in $options{dbfile}";
 		}
 		$i++;
 	}
@@ -208,4 +273,73 @@ sub add_to_db {
 	}
 }
 
-main();
+sub get_media_runtime ($) {
+	my $episode_file = shift;
+	my $mediainfo = qq#mediainfo --Inform="Video;%Duration%" "$episode_file"#;
+	debug 1, $mediainfo;
+	my $media_runtime_string = qx($mediainfo);
+	chomp $media_runtime_string;
+	my $media_runtime = int($media_runtime_string / 1000);
+}
+
+sub play_media () {
+	if(defined $options{current_file} && -e $options{current_file}) {
+		my $media_runtime = get_media_runtime $options{current_file};
+		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
+		debug 1, $play;
+
+		my $starttime = scalar time();
+		my ($stdout, $stderr, $exit) = ('', 'NONEXISTANTFILE', '');
+
+		if($options{play}) {
+			($stdout, $stderr, $exit) = capture {
+				system($play);
+			};
+		} else {
+			print "Press enter to continue";
+			<STDIN>;
+		}
+		my $endtime = scalar time();
+		my $runtime = $endtime - $starttime;
+
+		if($stderr =~ m#NONEXISTANTFILE#) {
+			if($runtime >= $options{min_percentage_runtime_to_count} * $media_runtime) {
+				add_to_db($options{current_file});
+			} else {
+				warn "$options{current_file} will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
+			}
+			main();
+		} else {
+			debug 1, "You closed the window, as the file NONEXISTANTFILE was not found in stderr. Exiting.";
+			exit;
+		}
+	} else {
+		error "Invalid current file";
+	}
+}
+
+sub choose_random_file () {
+	my @episodes = get_subfolders_and_files(dir => $options{staffeldir}, grep => sub { m#\.mp4$# });
+	my @serien_sorted = sort { $b->{prio} <=> $a->{prio} || rand() <=> rand() } map { +{file => $_, prio => get_time_priorisation("$options{staffeldir}/$_")} } @episodes;
+	debug 3, Dumper @serien_sorted;
+	$options{current_file} = $options{staffeldir}.'/'.[@serien_sorted]->[0]->{file};
+	debug 1, "Chose $options{current_file} (prio: ".get_time_priorisation("$options{current_file}").")";
+}
+
+sub main () {
+	choose_serie;
+
+	while (!-d $options{seriendir}) {
+		choose_serie;
+	}
+	
+	choose_staffel();
+
+	choose_random_file;
+
+	play_media while(1);
+}
+
+analyze_args(@ARGV);
+
+main;
