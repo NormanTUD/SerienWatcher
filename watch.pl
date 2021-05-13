@@ -362,7 +362,7 @@ sub play_media () {
 		my $runtime = $endtime - $starttime;
 
 		if($stderr =~ m#NONEXISTANTFILE#) {
-			if($runtime >= ($options{min_percentage_runtime_to_count} * $media_runtime) || ($media_runtime >= 120 && $runtime > 30) || exists $ENV{FORCECOUNT}) {
+			if($runtime >= ($options{min_percentage_runtime_to_count} * $media_runtime) || ($media_runtime >= 120 && $runtime < 30) || exists $ENV{FORCECOUNT}) {
 				add_to_db($options{current_file});
 			} else {
 				warn "$options{current_file} will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
