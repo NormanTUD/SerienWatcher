@@ -9,6 +9,10 @@ use UI::Dialog;
 use Capture::Tiny ':all';
 use Data::Dumper;
 use Tie::File;
+use Memoize;
+
+my %cache;
+memoize 'get_time_priorisation_staffel', SCALAR_CACHE => [HASH => \%cache];
 
 sub error ($;$);
 sub debug ($$);
@@ -26,7 +30,8 @@ my %options = (
 	staffeldir => undef,
 	min_percentage_runtime_to_count => 0.8,
 	current_file => undef,
-	dbfile => undef
+	dbfile => undef,
+	zufall => 0
 );
 
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
@@ -46,7 +51,7 @@ sub debug ($$) {
 	my $debuglevel = shift;
 	my $text = shift;
 	if($options{debug} && $options{debuglevel} >= $debuglevel) {
-		warn "DEBUG: ".color("blue on_white").$text.color("reset")."\n";
+		warn "DEBUG ($debuglevel): ".color("blue on_white").$text.color("reset")."\n";
 	}
 }
 
@@ -95,6 +100,7 @@ ${green}perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simp
 --min_staffel=0                                               Minimal staffel to choose from (cannot be combined with --staffel)
 --max_staffel=10                                              Maximal staffel to choose from (cannot be combined with --staffel)
 --min_percentage_runtime_to_count=$options{min_percentage_runtime_to_count}                           Minimal percentage for the play to be counted (between 0 and 1)
+--zufall                                                      Random Staffel
 EOF
 	exit $exit;
 }
@@ -129,6 +135,8 @@ sub analyze_args {
 			}
 		} elsif(m#^--serie=(.*)$#) {
 			$options{serie} = $1;
+		} elsif(m#^--zufall$#) {
+			$options{zufall} = 1;
 		} elsif(m#^--staffel=(.*)$#) {
 			$options{staffel} = $1;
 		} elsif(m#^--min_staffel=(.*)$#) {
@@ -152,16 +160,22 @@ sub analyze_args {
 }
 
 sub choose_serie () {
-	$options{seriendir} = "$options{maindir}/$options{serie}";
+	if(defined $options{serie}) {
+		$options{seriendir} = "$options{maindir}/$options{serie}";
+	}
 
-	if(!$options{serie} || !-d $options{seriendir}) {
-		my @serien = get_subfolders_and_files(dir => $options{maindir}, grep => sub { m#\Q$options{serie}\E#i });
+	if(!defined $options{serie} || !-d $options{seriendir}) {
+		my @serien = get_subfolders_and_files(dir => $options{maindir}, grep => sub { !m#^\.# && -d "$options{maindir}/$_" && (defined $options{serie} ? m#\Q$options{serie}\E#i : 1) });
 		my $first = 0;
 		if(@serien == 1) {
 			$options{serie} = $serien[0];
 		} elsif (@serien == 0) {
-			msg "Mit dem Regex /$options{serie}/ konnten keine Serien gefunden werden.";
-			@serien = get_subfolders_and_files(dir => $options{maindir});
+			if(defined $options{serie}) {
+				msg "Mit dem Regex /$options{serie}/ konnten keine Serien gefunden werden.";
+			} else {
+				error "Es konnten keine Serien gefunden werden", 1;
+			}
+			@serien = get_subfolders_and_files(dir => $options{maindir} && sub { !m#^\.# } );
 			$options{serie} = radiolist("Waehle Serie: ", [map { $_ => [$_ => !$first++] } @serien ]);
 		} else {
 			$options{serie} = radiolist("Waehle Serie: ", [map { $_ => [$_ => !$first++] } @serien ]);
@@ -179,35 +193,48 @@ sub choose_staffel {
 		$options{staffel} = undef;
 	}
 
+	%cache = ();
+
 	if(!defined($options{staffel}) && !defined $options{min_staffel} && !defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" });
-		my $selection = radiolist("Waehle Staffel fuer $options{serie}: ", [ "Zufall unter" => ["Zufall unter", 0], map { $_ => [$_ => !$first++] } @staffeln ]);
+		my $selection = $options{zufall} == 1 ? 'Zufall' : radiolist("Waehle Staffel fuer $options{serie}: ", [
+				"Zufall unter" => ["Zufall unter", 0], 
+				"Zufall" => ["Zufall", 0], 
+				map { $_ => [$_ => !$first++] } @staffeln 
+			]
+		);
+
 		if($selection eq "Zufall unter") {
 			$options{min_staffel} = [sort { $a <=> $b } @staffeln]->[0];
 			$options{max_staffel} = input("Staffel unter:");
 			$options{rechoose_staffel} = 1;
 			choose_staffel();
+		} elsif($selection eq "Zufall") {
+			$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
+			$options{rechoose_staffel} = 1;
+			$options{zufall} = 1;
 		} else {
 			$options{staffel} = $selection;
 		}
 	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && !defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
 	} elsif (!defined($options{staffel}) && !defined($options{min_staffel}) && defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ <= $options{max_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
 	} elsif (!defined($options{staffel}) && defined($options{min_staffel}) && defined($options{max_staffel})) {
 		@staffeln = get_subfolders_and_files(dir => $options{seriendir}, grep => sub { !m#^\.# && -d "$options{seriendir}/$_" && $_ >= $options{min_staffel} && $_ <= $options{max_staffel} });
 		$options{rechoose_staffel} = 1;
-		$options{staffel} = [sort { rand() <=> rand() } @staffeln]->[0];
+		$options{staffel} = [sort { get_time_priorisation_staffeln("$options{seriendir}/$a", "$options{seriendir}/$b") || rand() <=> rand() } @staffeln]->[0];
 	} elsif(defined($options{staffel}) && !defined $options{min_staffel} && !defined($options{max_staffel})) {
 		# do nothing, staffel already specified
 	} else {
 		error "Cannot choose specific staffel and then use --max_staffel and/or --min_staffel at the same time", 0;
 	}
 
+	debug 1, "Chose staffel $options{staffel}, time prio: ".get_time_priorisation_staffel("$options{seriendir}/$options{staffel}");
 	debug 2, Dumper \%options;
 
 	$options{staffeldir} = "$options{seriendir}/$options{staffel}";
@@ -290,7 +317,7 @@ sub get_media_runtime () {
 sub play_media () {
 	if(defined $options{current_file} && -e $options{current_file}) {
 		my $media_runtime = get_media_runtime;
-		my $play = qq#vlc --fullscreen --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
+		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
@@ -323,12 +350,60 @@ sub play_media () {
 	}
 }
 
+
 sub choose_random_file () {
 	my @episodes = get_subfolders_and_files(dir => $options{staffeldir}, grep => sub { m#\.mp4$# });
 	my @serien_sorted = sort { $b->{prio} <=> $a->{prio} || rand() <=> rand() } map { +{file => $_, prio => get_time_priorisation("$options{staffeldir}/$_")} } @episodes;
 	debug 3, Dumper @serien_sorted;
 	$options{current_file} = $options{staffeldir}.'/'.[@serien_sorted]->[0]->{file};
 	debug 1, "Chose $options{current_file} (prio: ".get_time_priorisation("$options{current_file}").")";
+}
+
+sub get_time_priorisation_staffeln {
+	my ($x, $y) = @_;
+
+	return (get_time_priorisation_staffel($y) <=> get_time_priorisation_staffel($x));
+}
+
+sub get_time_priorisation_staffel {
+	my $dir = shift;
+	my @files = ();
+
+	system("touch $options{dbfile}");
+
+	my $sum = 0;
+
+	my @db = ();
+	tie @db, 'Tie::File', $options{dbfile} or error "Error accessing the file $options{dbfile}: $!"; 
+	my $i = 0;
+	foreach my $line (@db) {
+		if($line =~ m#(.*):::(.*)#) {
+			my ($filename, $time) = ($1, $2);
+			my $re_string = $dir =~ s#/#/+#gr;
+			if($filename =~ $re_string) {
+				push @files, $filename;
+
+				my $current_time = scalar time();
+				my $watched_seconds_ago = int($current_time - $time);
+				$sum += $watched_seconds_ago;
+			}
+		} elsif(!$line) {
+			warn "Empty line in $options{dbfile}";
+		} elsif($line) {
+			warn "Invalid line $line in $options{dbfile}";
+		}
+		$i++;
+	}
+
+	if(!@files) {
+		$sum = 10**20;
+	} else {
+		$sum = int($sum / scalar(@files));
+	}
+
+	debug 1, "get_time_priorisation_staffel($dir) = $sum";
+
+	return $sum;
 }
 
 sub main () {
