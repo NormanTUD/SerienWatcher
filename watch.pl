@@ -344,7 +344,7 @@ sub play_media () {
 	choose_random_file();
 	if(defined $options{current_file} && -e $options{current_file}) {
 		my $media_runtime = get_media_runtime;
-		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" /dev/NONEXISTANTFILE#;
+		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
