@@ -350,7 +350,7 @@ sub play_media () {
 		my $folder_current_file = $options{current_file};
 		my $file_current_file = $options{current_file};
 
-		$folder_current_file =~ s#/.*?$##g;
+		$folder_current_file =~ s#(.*)/.*#$1/#g;
 		$file_current_file =~ s#.*/##g;
 
 		my $intro_endtime = "$folder_current_file/.intro_endtime";
