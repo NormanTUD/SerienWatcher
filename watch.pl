@@ -345,7 +345,7 @@ sub play_media () {
 	if(defined $options{current_file} && -e $options{current_file}) {
 		my $media_runtime = get_media_runtime;
 
-		my $starttime = '';
+		my $starttime_command = '';
 
 		my $folder_current_file = $options{current_file};
 		my $file_current_file = $options{current_file};
@@ -360,12 +360,12 @@ sub play_media () {
 			my @lines = qx(cat $intro_endtime);
 			foreach my $line (@lines) {
 				if($line =~ m#$file_current_file ::: (\d+)$#) {
-					$starttime = "--start-time=$1";
+					$starttime_command = "--start-time=$1";
 				}
 			}
 		}
 
-		my $play = qq#vlc --no-random --play-and-exit $starttime "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
+		my $play = qq#vlc --no-random --play-and-exit $starttime_command "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
