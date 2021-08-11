@@ -344,7 +344,28 @@ sub play_media () {
 	choose_random_file();
 	if(defined $options{current_file} && -e $options{current_file}) {
 		my $media_runtime = get_media_runtime;
-		my $play = qq#vlc --no-random --play-and-exit "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
+
+		my $starttime = '';
+
+		my $folder_current_file = $options{current_file};
+		my $file_current_file = $options{current_file};
+
+		$folder_current_file =~ s#/.*?$##g;
+		$file_current_file =~ s#.*/##g;
+
+		my $intro_endtime = "$folder_current_file/.intro_endtime";
+
+		# https://github.com/NormanTUD/IntroCutter
+		if(-e $intro_endtime ) {
+			my @lines = qx(cat $intro_endtime);
+			foreach my $line (@lines) {
+				if($line =~ m#$file_current_file ::: (\d+)$#) {
+					$starttime = "--start-time=$1";
+				}
+			}
+		}
+
+		my $play = qq#vlc --no-random --play-and-exit $starttime "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
