@@ -37,7 +37,7 @@ ls -1 $maindir/Die-Simpsons/1
 # Example
 
 ```console
-perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simpsons --min_staffel=1 --max_staffel=14 --min_percentage_runtime_to_count=0.8
+perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simpsons --min_staffel=1 --max_staffel=14
 ```
 
 Check `--help` for all options.
