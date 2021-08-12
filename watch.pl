@@ -367,10 +367,9 @@ sub play_media () {
 			$fullscreen_command = " --fullscreen ";
 		}
 
-		my $play = qq#vlc --verbose=2 $fullscreen_command --no-random --play-and-exit $starttime_command "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
+		my $play = qq#vlc $fullscreen_command --no-random --play-and-exit $starttime_command "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
 		debug 1, $play;
 
-		my $starttime = scalar time();
 		my ($stdout, $stderr, $exit) = ('', 'NONEXISTANTFILE', '');
 
 		if($options{play}) {
@@ -384,8 +383,6 @@ sub play_media () {
 			print "Press enter to continue";
 			<STDIN>;
 		}
-		my $endtime = scalar time();
-		my $runtime = $endtime - $starttime;
 
 		if($stderr =~ m#NONEXISTANTFILE#) {
 			add_to_db($options{current_file});
