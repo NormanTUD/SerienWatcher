@@ -32,7 +32,8 @@ my %options = (
 	staffeldir => undef,
 	current_file => undef,
 	dbfile => undef,
-	zufall => 0
+	zufall => 0,
+	fullscreen => 1
 );
 
 my $d = new UI::Dialog ( backtitle => 'SerienWatcher', title => 'SerienWatcher',
@@ -361,7 +362,12 @@ sub play_media () {
 			}
 		}
 
-		my $play = qq#vlc --no-random --play-and-exit $starttime_command "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
+		my $fullscreen_command = "";
+		if($options{fullscreen}) {
+			$fullscreen_command = " --fullscreen ";
+		}
+
+		my $play = qq#vlc --verbose=2 $fullscreen_command --no-random --play-and-exit $starttime_command "$options{current_file}" "/dev/NONEXISTANTFILE" "vlc://quit"#;
 		debug 1, $play;
 
 		my $starttime = scalar time();
@@ -371,6 +377,9 @@ sub play_media () {
 			($stdout, $stderr, $exit) = capture {
 				system($play);
 			};
+			if($exit != 0) {
+				exit $exit;
+			}
 		} else {
 			print "Press enter to continue";
 			<STDIN>;
