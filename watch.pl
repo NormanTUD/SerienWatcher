@@ -30,7 +30,6 @@ my %options = (
 	max_staffel => undef,
 	seriendir => undef,
 	staffeldir => undef,
-	min_percentage_runtime_to_count => 0.8,
 	current_file => undef,
 	dbfile => undef,
 	zufall => 0
@@ -96,7 +95,7 @@ sub _help {
 
 	print <<EOF;
 Example call:
-${green}perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simpsons --min_staffel=1 --max_staffel=14 --min_percentage_runtime_to_count=0.8${reset}
+${green}perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simpsons --min_staffel=1 --max_staffel=14
 --debug                                                       Enable debug
 --debuglevel=4                                                Level of debug messages
 --noplay                                                      Disable VLC starting (only useful for debugging)
@@ -105,7 +104,6 @@ ${green}perl watch.pl --maindir=/home/norman/mailserver/serien/ --serie=Die-Simp
 --staffel=1                                                   Staffel
 --min_staffel=0                                               Minimal staffel to choose from (cannot be combined with --staffel)
 --max_staffel=10                                              Maximal staffel to choose from (cannot be combined with --staffel)
---min_percentage_runtime_to_count=$options{min_percentage_runtime_to_count}                           Minimal percentage for the play to be counted (between 0 and 1)
 --zufall                                                      Random Staffel
 EOF
 	exit $exit;
@@ -151,8 +149,6 @@ sub analyze_args {
 			$options{min_staffel} = $1;
 		} elsif(m#^--max_staffel=(.*)$#) {
 			$options{max_staffel} = $1;
-		} elsif(m#^--min_percentage_runtime_to_count=(.*)$#) {
-			$options{min_percentage_runtime_to_count} = $1;
 		} elsif (m#^--help$#) {
 			_help(0);
 		} else {
@@ -383,11 +379,7 @@ sub play_media () {
 		my $runtime = $endtime - $starttime;
 
 		if($stderr =~ m#NONEXISTANTFILE#) {
-			#if($runtime >= ($options{min_percentage_runtime_to_count} * $media_runtime) || ($media_runtime >= 120 && $runtime < 30) || exists $ENV{FORCECOUNT}) {
 			add_to_db($options{current_file});
-			#} else {
-			#	warn "$options{current_file} will not be counted as it only ran $runtime seconds. The file itself is $media_runtime seconds long.\n";
-			#}
 			main();
 		} else {
 			debug 1, "You closed the window, as the file NONEXISTANTFILE was not found in stderr. Exiting.";
