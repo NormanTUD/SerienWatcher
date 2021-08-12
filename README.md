@@ -2,6 +2,8 @@
 
 This script allows to watch series and logs when a specific episode has last been watched. When starting it, it looks into it's logs and choses episodes that have not been seen for the longest time.
 
+Together with [IntroCutter](https://github.com/NormanTUD/IntroCutter) you can automatically skip intros.
+
 # --maindir Structure
 
 Your `maindir` must be structured like this:
