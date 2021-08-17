@@ -400,7 +400,7 @@ sub play_media () {
 		my $http_command = " --http-port $options{controlport} --http-password $options{controlpassword} --http-host $options{controlhost} ";
 
 		$finished_playing = 0;
-		my $play = qq#vlc $http_command $fullscreen_command --no-random --play-and-stop --no-repeat --no-loop $starttime_command "$options{current_file}"#;
+		my $play = qq#vlc $http_command $fullscreen_command --no-random --play-and-stop --no-repeat --loop $starttime_command "$options{current_file}"#;
 		debug 1, $play;
 
 		my $original_pid = $$;
@@ -425,7 +425,9 @@ sub play_media () {
 				exit;
 			}
 		} else {
-			sleep 3;
+			sleep 2;
+
+			quit_vlc_after_current();
 
 			if($options{zufall}) {
 				set_random_on($original_pid, 1);
@@ -454,6 +456,12 @@ sub play_media () {
 	} else {
 		error "Invalid current file";
 	}
+}
+
+
+sub quit_vlc_after_current {
+	debug 0, "quit_vlc_after_current()";
+	add_to_playlist("vlc://quit");
 }
 
 sub quit_vlc {
@@ -487,7 +495,7 @@ sub set_random_off {
 sub add_to_playlist {
 	my $file = shift;
 	debug 0, "add_to_playlist($file)";
-	set_http_info("command=in_enqueue&input=file://$file");
+	set_http_info("in_enqueue&input=file://$file");
 }
 
 sub set_playlist_to_default_order {
@@ -530,7 +538,7 @@ sub get_playlist {
 		die $p;
 		return $p;
 	} else {
-		exit;
+		die "not available";
 	}
 }
 
