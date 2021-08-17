@@ -393,6 +393,9 @@ sub play_media () {
 		}
 
 		my $fullscreen_command = "";
+
+		#$options{fullscreen} = is_fullscreen();
+
 		if($options{fullscreen}) {
 			$fullscreen_command = " --fullscreen ";
 		}
@@ -437,6 +440,7 @@ sub play_media () {
 
 			while (1) {
 				my $randombutton_value = randombutton_is_pressed();
+				$options{fullscreen} = is_fullscreen();
 				if($randombutton_value ne $options{zufall}) {
 					if($options{zufall}) {
 						set_random_off($original_pid);
@@ -576,6 +580,23 @@ sub finished_playing {
 	return undef;
 }
 
+sub is_fullscreen {
+	my $full_info = '';
+	eval {
+		$full_info = get_full_info_http();
+	};
+	warn $full_info;
+
+	if($full_info =~ m#<fullscreen>(false|true)</fullscreen>#) {
+		if($1 eq "true") {
+			return 1;
+		} else {
+			return 0;
+		}
+	}
+	return $options{fullscreen};
+}
+
 sub randombutton_is_pressed {
 	my $full_info = get_full_info_http();
 	warn $full_info;
@@ -657,8 +678,6 @@ sub choose_random_file {
 		my $current_file_nr = $current_filename;
 		$current_file_nr =~ s#(\d+) -.*#$1#g;
 
-		debug 0, "=>=>=>=>=>=>=>=>=>=>=>=>=>staffelnr: $staffel_nr";
-		debug 0, ">>>>>>>>>>>>>>>>>>>>>>>>>>get_next_file($staffel_nr, $current_file_nr);";
 		get_next_file($staffel_nr, $current_file_nr);
 		if(defined $options{current_file}) {
 			$chosen_properly = 1;
