@@ -567,7 +567,6 @@ sub finished_playing {
 	return $finished_playing if $finished_playing;
 
 	my $full_info = get_full_info_http();
-	warn $full_info;
 
 	if($full_info =~ m#<currentplid>(.*)</currentplid>#) {
 		if($1 eq "-1") {
@@ -585,7 +584,6 @@ sub is_fullscreen {
 	eval {
 		$full_info = get_full_info_http();
 	};
-	warn $full_info;
 
 	if($full_info =~ m#<fullscreen>(false|true)</fullscreen>#) {
 		if($1 eq "true") {
@@ -599,7 +597,6 @@ sub is_fullscreen {
 
 sub randombutton_is_pressed {
 	my $full_info = get_full_info_http();
-	warn $full_info;
 
 	if($full_info =~ m#<random>(false|true)</random>#) {
 		if($1 eq "true") {
