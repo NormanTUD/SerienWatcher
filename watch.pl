@@ -12,6 +12,7 @@ use Data::Dumper;
 use Tie::File;
 use Memoize;
 use LWP::UserAgent;
+use IO::Socket;
 
 my %cache;
 memoize 'get_time_priorisation_staffel', SCALAR_CACHE => [HASH => \%cache];
@@ -35,7 +36,7 @@ my %options = (
 	dbfile => undef,
 	zufall => 0,
 	fullscreen => 1,
-	controlport => 9332,
+	controlport => undef,
 	controlpassword => rand(),
 	controlhost => "localhost",
 	next_in_order => 0
@@ -448,7 +449,7 @@ sub play_media () {
 						set_random_on($original_pid);
 					}
 				} else {
-					debug 4, "Not changing random status";
+					debug 6, "Not changing random status";
 				}
 				sleep 1;
 				if(finished_playing()) {
@@ -547,7 +548,7 @@ sub get_playlist {
 }
 
 sub get_full_info_http {
-	debug 0, "get_full_info_http()";
+	debug 6, "get_full_info_http()";
 	my $browser = LWP::UserAgent->new;
 	my $url = "http://$options{controlhost}:$options{controlport}/requests/status.xml";
 	my $req =  HTTP::Request->new( GET => $url);
@@ -562,7 +563,7 @@ sub get_full_info_http {
 }
 
 sub finished_playing {
-	debug 0, "finished_playing()";
+	debug 6, "finished_playing()";
 
 	return $finished_playing if $finished_playing;
 
@@ -782,7 +783,29 @@ sub main () {
 	play_media while(1);
 }
 
+sub get_random_number_between {
+	my $start = shift;
+	my $end = shift;
+	my $number = $start + int(rand($end));
+	return $number;
+}
+
+sub get_open_port {
+	while (1) {
+		my $port = get_random_number_between(2048, 60000);
+		my $socket = IO::Socket::INET->new(PeerAddr => $options{controlhost} , PeerPort => $port , Proto => 'tcp' , Timeout => 1);
+		
+		if($socket) {
+			return $port;
+		}
+	}
+}
+
 analyze_args(@ARGV);
+if(!$options{controlport}) {
+	$options{controlport} = get_open_port();
+}
+
 
 START:
 main;
