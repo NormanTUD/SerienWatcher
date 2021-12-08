@@ -37,7 +37,7 @@ my %options = (
 	zufall => 0,
 	fullscreen => 1,
 	controlport => undef,
-	controlpassword => rand(),
+	controlpassword => rand_password(),
 	controlhost => "localhost",
 	next_in_order => 0
 );
@@ -62,7 +62,7 @@ sub debug ($$) {
 	my $debuglevel = shift;
 	my $text = shift;
 	if($options{debug} && $options{debuglevel} >= $debuglevel) {
-		warn "DEBUG ($debuglevel): ".color("blue on_white").$text.color("reset")."\n";
+		warn "DEBUG ($debuglevel): ".color("blue").$text.color("reset")."\n";
 	}
 }
 
@@ -401,10 +401,10 @@ sub play_media () {
 			$fullscreen_command = " --fullscreen ";
 		}
 
-		my $http_command = " --http-port $options{controlport} --http-password $options{controlpassword} --http-host $options{controlhost} ";
+		my $http_command = " --extraintf=http --http-port $options{controlport} --http-password $options{controlpassword} --http-host $options{controlhost} ";
 
 		$finished_playing = 0;
-		my $play = qq#vlc $http_command $fullscreen_command --no-random --play-and-stop --no-repeat --loop $starttime_command "$options{current_file}"#;
+		my $play = qq#vlc $http_command $fullscreen_command --no-random --play-and-stop --no-repeat --loop $starttime_command "$options{current_file}" "vlc://quit"#;
 		debug 1, $play;
 
 		my $original_pid = $$;
@@ -431,7 +431,7 @@ sub play_media () {
 		} else {
 			sleep 2;
 
-			quit_vlc_after_current();
+			#quit_vlc_after_current();
 
 			if($options{zufall}) {
 				set_random_on($original_pid, 1);
@@ -442,14 +442,18 @@ sub play_media () {
 			while (1) {
 				my $randombutton_value = randombutton_is_pressed();
 				$options{fullscreen} = is_fullscreen();
-				if($randombutton_value ne $options{zufall}) {
-					if($options{zufall}) {
-						set_random_off($original_pid);
+				if(defined $randombutton_value) {
+					if($randombutton_value ne $options{zufall}) {
+						if($options{zufall}) {
+							set_random_off($original_pid);
+						} else {
+							set_random_on($original_pid);
+						}
 					} else {
-						set_random_on($original_pid);
+						debug 6, "Not changing random status";
 					}
 				} else {
-					debug 6, "Not changing random status";
+					debug 1, "\$randombutton_value is undefined";
 				}
 				sleep 1;
 				if(finished_playing()) {
@@ -792,13 +796,17 @@ sub get_random_number_between {
 
 sub get_open_port {
 	while (1) {
-		my $port = get_random_number_between(2048, 60000);
+		my $port = get_random_number_between(10000, 20000);
 		my $socket = IO::Socket::INET->new(PeerAddr => $options{controlhost} , PeerPort => $port , Proto => 'tcp' , Timeout => 1);
 		
 		if($socket) {
 			return $port;
 		}
 	}
+}
+
+sub rand_password {
+	return sprintf "%08X", rand(0xffffffff);;
 }
 
 analyze_args(@ARGV);
