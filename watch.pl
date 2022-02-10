@@ -431,7 +431,7 @@ sub play_media () {
 		} else {
 			sleep 2;
 
-			#quit_vlc_after_current();
+			quit_vlc_after_current();
 
 			if($options{zufall}) {
 				set_random_on($original_pid, 1);
