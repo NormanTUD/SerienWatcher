@@ -405,9 +405,14 @@ sub choose_random_file {
 	foreach (@list) {
 		push @weight, get_time_priorisation("$options{seriendir}/$_");
 	}
-	my $thing = Math::Random::Discrete->new(\@weight, \@list);
-	$options{current_file} = $thing->rand;
-	debug 1, "Chose $options{current_file} (prio: ".get_time_priorisation("$options{current_file}").")";
+	if(@weight) {
+		my $thing = Math::Random::Discrete->new(\@weight, \@list);
+		$options{current_file} = $thing->rand;
+		debug 1, "Chose $options{current_file} (prio: ".get_time_priorisation("$options{current_file}").")";
+	} else {
+		$options{current_file} = $list[int rand (@list)];
+		debug 1, "Chose $options{current_file} (could not find weights)";
+	}
 }
 
 sub get_time_priorisation_staffel {
