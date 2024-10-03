@@ -11,6 +11,8 @@ from rich.progress import Progress
 from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
 import subprocess
 
+db_entries = None
+
 console = Console()
 
 parser = argparse.ArgumentParser(description='Process some options.')
@@ -106,27 +108,29 @@ def load_db_file(db_file_path):
     if not os.path.isfile(db_file_path):
         return {}
 
-    db_entries = {}
+    _db_entries = {}
     with open(db_file_path, 'r') as db_file:
         for line in db_file:
             path, unix_time = line.strip().split(':::')
             # Normalize the path by removing slashes variations
             normalized_path = path.replace('/', '').replace('\\', '')  # Remove slashes
-            if normalized_path in db_entries:
+            if normalized_path in _db_entries:
                 # Keep the entry with the latest timestamp
-                if db_entries[normalized_path] < int(unix_time):
-                    db_entries[normalized_path] = int(unix_time)
+                if _db_entries[normalized_path] < int(unix_time):
+                    _db_entries[normalized_path] = int(unix_time)
             else:
-                db_entries[normalized_path] = int(unix_time)
+                _db_entries[normalized_path] = int(unix_time)
 
-    return db_entries
+    return _db_entries
 
 def update_db_file(db_file_path, mp4_file, unix_time):
     """Updates the .db.txt file with the new entry."""
     with open(db_file_path, 'a') as db_file:
         db_file.write(f"{mp4_file}:::{unix_time}\n")
 
-def select_mp4_file(mp4_files, db_entries, last_played=None):
+def select_mp4_file(mp4_files, db_file_path, last_played=None):
+    global db_entries
+    
     """Selects an MP4 file based on Unix times, ensuring the last played is not repeated."""
     candidates = []
 
@@ -135,11 +139,15 @@ def select_mp4_file(mp4_files, db_entries, last_played=None):
 
     # Durchlaufe alle MP4-Dateien und baue die Kandidatenliste
     for mp4_file in mp4_files:
-        normalized_path = mp4_file.replace('/', '').replace('\\', '')  # Normalize the path
+        normalized_path = mp4_file #.replace('/', '').replace('\\', '')  # Normalize the path
 
         # Überprüfe, ob es keinen Eintrag gibt
-        if normalized_path not in db_entries:
+        if normalized_path not in db_entries and normalized_last_played and normalized_last_played == normalized_path:
             debug(f"No entry found for: {mp4_file}. Directly using it.")  # Debugging-Ausgabe
+            current_time = int(time.time())
+            update_db_file(db_file_path, mp4_file, current_time)
+            
+            db_entries = load_db_file(db_file_path)
             return mp4_file
 
         # Überprüfe, ob die Datei die zuletzt abgespielte ist
@@ -147,7 +155,10 @@ def select_mp4_file(mp4_files, db_entries, last_played=None):
             debug(f"Skipping last played file: {mp4_file}")  # Debugging-Ausgabe
             continue
 
-        candidates.append((mp4_file, db_entries[normalized_path]))
+        if os.path.exists(mp4_file):
+            candidates.append((mp4_file, 0))
+        else:
+            debug(f"Cannot add {mp4_file}")
 
     if not candidates:
         error("No new MP4 files available to play.", 3)
@@ -179,6 +190,7 @@ def play_video(video_path):
     return stdout.decode(), stderr.decode()
 
 def main():
+    global db_entries
     # Check if the main directory exists
     if not os.path.isdir(args.maindir):
         error(f"--maindir {args.maindir} not found")
@@ -202,10 +214,10 @@ def main():
     # Loop to continuously select and play video files
     while True:
         # Select an MP4 file to play
-        selected_file = select_mp4_file(mp4_files, db_entries, last_played_file)
+        selected_file = select_mp4_file(mp4_files, db_file_path, last_played_file)
 
         # Update the .db.txt file with the current Unix time if needed
-        normalized_path = selected_file.replace('/', '').replace('\\', '')  # Normalize the path
+        normalized_path = selected_file.replace('//*', '/') # Normalize the path
         if normalized_path not in db_entries:
             current_time = int(time.time())
             update_db_file(db_file_path, selected_file, current_time)
