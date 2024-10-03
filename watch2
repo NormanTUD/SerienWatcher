@@ -1,5 +1,6 @@
 #!/bin/bash
 
+{
 SCRIPT_DIR=$(dirname $(realpath "$0"))
 
 function keep_idle {
@@ -56,3 +57,4 @@ python3 $SCRIPT_DIR/.watch2.py $* &
 wait %2
 
 kill %1
+}
