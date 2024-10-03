@@ -188,11 +188,38 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     debug(f"Selected file: {selected_file}")  # Debugging-Ausgabe
     return selected_file
 
+def get_skip_value(filename, filepath):
+    """Gibt den Skip-Wert für den angegebenen Dateinamen zurück."""
+    try:
+        with open(filepath, 'r') as file:
+            for line in file:
+                # Teile die Zeile in den Dateinamen und den Wert
+                parts = line.strip().split(' ::: ')
+                if len(parts) == 2:
+                    file_name, skip_value = parts
+                    # Überprüfe, ob der Dateiname übereinstimmt
+                    if file_name == filename:
+                        return int(skip_value)  # Den Wert zurückgeben
+        return None  # Wenn kein Wert gefunden wurde
+    except FileNotFoundError:
+        debug(f"Die Datei {filepath} wurde nicht gefunden.")
+        return None
 
 def play_video(video_path):
     # Start VLC player with the video and option to close VLC when the video ends
     # Trying to start VLC with a non-existing file to check if it will exit on its own.
-    process = subprocess.Popen(['vlc', '--no-random', '--play-and-exit', video_path, '/dev/doesnt_exist', "vlc://quit"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    start_time = "";
+    file_name = os.path.basename(video_path)
+    folder_path = os.path.dirname(video_path)
+
+    intro_skipper_file = os.path.join(folder_path, ".intro_endtime")
+
+    start_time = get_skip_value(file_name, intro_skipper_file)
+
+    if start_time:
+        process = subprocess.Popen(['vlc', '--no-random', '--play-and-exit', f"--start-time={start_time}", video_path, '/dev/doesnt_exist', "vlc://quit"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    else:
+        process = subprocess.Popen(['vlc', '--no-random', '--play-and-exit', video_path, '/dev/doesnt_exist', "vlc://quit"], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
     # Wait until the VLC process ends and capture stdout and stderr
     stdout, stderr = process.communicate()
