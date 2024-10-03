@@ -18,8 +18,14 @@ def die(message):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(1)
 
+def debug_print(debug, message):
+    """Print debug messages if debug mode is enabled."""
+    if debug:
+        console.print(f"[bold yellow]Debug:[/bold yellow] {message}")
+
 def run_command(command):
     """Run a shell command and track subprocess tasks."""
+    debug_print(args.debug, f"Running command: {command}")
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     process_tasks.append(process)
     return process
@@ -33,6 +39,7 @@ def extract_frames(video_path, output_dir):
     if process.returncode != 0:
         console.print(f"[bold red]FFmpeg error:[/bold red] {stderr.decode()}")
         die("Failed to extract frames.")
+    debug_print(args.debug, f"Extracted frames to {output_dir}")
 
 def analyze_images(tmpdir):
     """Analyze images and return the last frame for each unique hash."""
@@ -54,8 +61,9 @@ def analyze_images(tmpdir):
 
                 if str(this_hash) != "0000000000000000":
                     hash_to_image[str(this_hash)].append(filepath)
+                    debug_print(args.debug, f"Hash {this_hash} for file {filepath}")
 
-    console.print(f"[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
+    console.print(f"\n[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
 
     for k in sorted(hash_to_image, key=lambda k: len(hash_to_image[k]), reverse=True):
         for item in hash_to_image[k]:
@@ -66,6 +74,7 @@ def analyze_images(tmpdir):
 
                 if thisfile not in last_file_to_frame or last_file_to_frame[thisfile] < thisframe:
                     last_file_to_frame[thisfile] = thisframe
+                    debug_print(args.debug, f"Found last frame for {thisfile}: {thisframe}")
 
     console.print(f"[green]Found last frames for {len(last_file_to_frame)} files.[/green]")
     return last_file_to_frame
@@ -76,9 +85,12 @@ def main(args):
 
     tmpdir = os.path.join(args.tmp, "frames")
     os.makedirs(tmpdir, exist_ok=True)
+    debug_print(args.debug, f"Temporary directory created at {tmpdir}")
 
     # Process each video file
     video_files = [f for f in os.listdir(args.dir) if f.endswith(".mp4")]
+    debug_print(args.debug, f"Found {len(video_files)} video files to process.")
+
     with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Processing videos...", total=len(video_files))
         for video_file in video_files:
@@ -87,6 +99,7 @@ def main(args):
 
             output_dir = os.path.join(tmpdir, md5_hash)
             os.makedirs(output_dir, exist_ok=True)
+            debug_print(args.debug, f"Output directory created for {video_file}: {output_dir}")
 
             if not os.path.exists(f"{args.dir}/.intro_endtime"):
                 extract_frames(video_path, output_dir)
@@ -115,7 +128,8 @@ if __name__ == "__main__":
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
         parser.add_argument("--dir", type=str, required=True, help="Directory containing video files.")
         parser.add_argument("--tmp", type=str, default="./tmp", help="Temporary directory for extracted frames.")
-        
+        parser.add_argument("--debug", action='store_true', help="Enable debug output.")
+
         args = parser.parse_args()
     
         main(args)
