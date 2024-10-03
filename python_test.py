@@ -6,7 +6,7 @@ import vlc
 import argparse
 from rich.console import Console
 from rich.progress import Progress
-from Levenshtein import distance as levenshtein_distance  # Levenshtein-Bibliothek importieren
+from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
 
 console = Console()
 
@@ -15,17 +15,17 @@ def error(message, exit_code=1):
     sys.exit(exit_code)
 
 def find_mp4_files(directory):
-    """ Suche nach MP4-Dateien im angegebenen Verzeichnis. """
+    """Search for MP4 files in the specified directory."""
     mp4_files = []
     seasons = os.listdir(directory)
     
     with Progress(transient=True) as progress:
-        task = progress.add_task("[cyan]Durchsuche nach MP4-Dateien...", total=len(seasons))
+        task = progress.add_task("[cyan]Searching for MP4 files...", total=len(seasons))
         
         for season in seasons:
             season_path = os.path.join(directory, season)
             if not os.path.isdir(season_path):
-                console.print(f"[bold yellow]Warnung:[/bold yellow] {season_path} ist kein Verzeichnis.")
+                console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
                 continue
             
             for file_name in os.listdir(season_path):
@@ -33,22 +33,22 @@ def find_mp4_files(directory):
                 if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
                     mp4_files.append(full_path)
 
-            # Fortschritt aktualisieren
+            # Update progress
             progress.update(task, advance=1)
 
     if not mp4_files:
-        error("Keine MP4-Dateien gefunden.", 3)
+        error("No MP4 files found.", 3)
     
     return mp4_files
 
 def find_series_directory(serie_name: str, maindir: str) -> str:
-    """ Sucht das Verzeichnis für die angegebene Serie. """
+    """Find the directory for the specified series."""
     exact_matches = []
     substring_matches = []
     potential_matches = []
 
     with Progress(transient=True) as progress:
-        task = progress.add_task("[cyan]Durchsuche Verzeichnisse...", total=len(os.listdir(maindir)))
+        task = progress.add_task("[cyan]Searching directories...", total=len(os.listdir(maindir)))
 
         for dir_name in os.listdir(maindir):
             full_path = os.path.join(maindir, dir_name)
@@ -66,33 +66,32 @@ def find_series_directory(serie_name: str, maindir: str) -> str:
     if len(exact_matches) == 1:
         return exact_matches[0]
     elif len(exact_matches) > 1:
-        error(f"Mehrere exakte Übereinstimmungen gefunden: {exact_matches}", 5)
+        error(f"Multiple exact matches found: {exact_matches}", 5)
     elif len(substring_matches) == 1:
         return substring_matches[0]
     elif len(substring_matches) > 1:
-        error(f"Mehrere Substring-Übereinstimmungen gefunden: {substring_matches}", 6)
+        error(f"Multiple substring matches found: {substring_matches}", 6)
 
     # Suggest closest match using Levenshtein distance
     if potential_matches:
         closest_match = min(potential_matches, key=lambda x: levenshtein_distance(x.lower(), serie_name.lower()))
-        error(f"Kein passendes Serienverzeichnis gefunden. Nahegelegene Übereinstimmung: {closest_match}", 3)
+        error(f"No suitable series directory found. Closest match: {closest_match}", 3)
 
-    error("Kein passendes Serienverzeichnis gefunden.", 3)
+    error("No suitable series directory found.", 3)
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
-
     parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
     parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
-    parser.add_argument('--serie', type=str, required=True, help='Set serie.')
+    parser.add_argument('--serie', type=str, required=True, help='Set series name.')
 
     args = parser.parse_args()
 
-    # Check if the maindir exists
+    # Check if the main directory exists
     if not os.path.isdir(args.maindir):
         error(f"--maindir {args.maindir} not found")
 
-    # Define the series name
+    # Find the series name
     serie_name = find_series_directory(args.serie, args.maindir)
 
     # Find mp4 files
@@ -102,7 +101,7 @@ def main():
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
 
-    print(mp4_files)
+    console.print(mp4_files)  # Changed print to console.print for consistency
 
 if __name__ == '__main__':
     try:
