@@ -15,18 +15,20 @@ def error(message, exit_code=1):
     sys.exit(exit_code)
 
 def find_mp4_files(directory):
+    #print(directory)
     """ Suche nach MP4-Dateien im angegebenen Verzeichnis. """
     mp4_files = []
 
     with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Durchsuche nach MP4-Dateien...", total=len(os.listdir(directory)))
         
-        # Durchsuche die Dateien im angegebenen Verzeichnis
-        for file_name in os.listdir(directory):
-            full_path = os.path.join(directory, file_name)
+        for season in os.listdir(directory):
+            # Durchsuche die Dateien im angegebenen Verzeichnis
+            for file_name in os.listdir(os.path.join(directory, season)):
+                full_path = os.path.join(directory,  season, file_name)
 
-            if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
-                mp4_files.append(full_path)
+                if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
+                    mp4_files.append(full_path)
 
             # Fortschritt aktualisieren
             progress.update(task, advance=1)
@@ -92,7 +94,7 @@ def main():
     serie_name = find_series_directory(args.serie, args.maindir)
 
     # Find mp4 files
-    mp4_files = find_mp4_files(os.path.join(serie_name, args.maindir))
+    mp4_files = find_mp4_files(os.path.join(args.maindir, serie_name))
 
     # Handle cases based on found mp4 files
     if len(mp4_files) == 0:
