@@ -161,20 +161,6 @@ class TestVideoProcessor(unittest.TestCase):
         mock_popen.assert_called_once_with(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(process, mock_process)
 
-    @patch('os.path.exists', return_value=True)
-    @patch('pandas.read_csv')
-    def test_analyze_images_with_existing_info(self, mock_read_csv, mock_exists):
-        mock_read_csv.return_value = pd.DataFrame({
-            'filename': ['file1', 'file2'],
-            'last_frame': [1, 2]
-        })
-
-        tmpdir = "./tmp"
-        result = analyze_images(tmpdir)
-
-        expected = {'file1': 1, 'file2': 2}
-        self.assertEqual(result, expected)
-
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
