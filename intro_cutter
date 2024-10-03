@@ -3,3 +3,5 @@
 source .shellscript_functions
 
 python3 intro_cutter.py $*
+
+rm -rf tmp
