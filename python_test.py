@@ -139,8 +139,8 @@ def select_mp4_file(mp4_files, db_entries, last_played=None):
 
         # Überprüfe, ob es keinen Eintrag gibt
         if normalized_path not in db_entries:
-            debug(f"No entry found for: {mp4_file}")  # Debugging-Ausgabe
-            continue
+            debug(f"No entry found for: {mp4_file}. Directly using it.")  # Debugging-Ausgabe
+            return mp4_file
 
         # Überprüfe, ob die Datei die zuletzt abgespielte ist
         if normalized_last_played and normalized_last_played == normalized_path:
