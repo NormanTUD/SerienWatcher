@@ -2,11 +2,12 @@
 
 import os
 import sys
-import vlc
 import argparse
+from textual.app import App, ComposeResult
+from textual.widgets import Input, ListView, ListItem, Button, Static
+from textual.reactive import Reactive
 from rich.console import Console
 from rich.progress import Progress
-import whiptail
 
 console = Console()
 
@@ -14,15 +15,54 @@ def error(message, exit_code=1):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(exit_code)
 
-def ask_for_series_name():
-    try:
-        # Use whiptail to ask for the series name
-        series_name = whiptail.inputbox("Enter the series name:")
-        if not series_name:  # Check if the input is empty
-            error("Series name cannot be empty.")
-        return series_name.strip()  # Return the input
-    except Exception as e:
-        error(f"Failed to get input: {e}")
+class MainApp(App):
+    series_name: Reactive[str] = Reactive("")
+
+    def compose(self) -> ComposeResult:
+        yield Static("Series Name:")
+        yield Input(placeholder="Enter Series Name", name="series_input")
+        yield Static("Available Series:")
+        
+        # Create the ListView without items initially
+        self.series_list_view = ListView(name="series_list")
+        yield self.series_list_view  # Yield the ListView
+
+        yield Button("Submit", id="submit_button")
+
+    async def on_mount(self) -> None:
+        # Populate series names once the app is mounted
+        self.series_names = self.get_available_series()
+        self.populate_series_list()
+
+    def populate_series_list(self):
+        # Add series names to the ListView
+        for series in self.series_names:
+            list_item = ListItem(Static(series))  # Create a ListItem for each series with Static widget
+            self.series_list_view.append(list_item)  # Add it to the ListView
+
+    async def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "submit_button":
+            input_widget = self.query_one(Input)
+            self.series_name = input_widget.value.strip()
+            
+            # Stop the application
+            self.exit()  # No await needed
+
+
+    def get_available_series(self):
+        # Assuming args.maindir is available in the scope
+        if not os.path.isdir(self.maindir):
+            error(f"--maindir {self.maindir} not found")
+
+        series_names = [item for item in os.listdir(self.maindir) if os.path.isdir(os.path.join(self.maindir, item))]
+        return series_names
+
+def ask_for_series_name(series_names, maindir):
+    app = MainApp()
+    app.maindir = maindir
+    app.series_names = series_names
+    app.run()
+    return app.series_name  # Return the input
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
@@ -44,9 +84,15 @@ def main():
     if not os.path.isdir(args.maindir):
         error(f"--maindir {args.maindir} not found")
 
+    # List available series in the main directory
+    series_names = []
+    for item in os.listdir(args.maindir):
+        if os.path.isdir(os.path.join(args.maindir, item)):
+            series_names.append(item)
+
     # Ask for series name if not provided
-    series_name = args.serie if args.serie else ask_for_series_name()
-    
+    series_name = args.serie if args.serie else ask_for_series_name(series_names, args.maindir)
+
     # Create the options dictionary with defaults from argparse
     options = vars(args)
     options['serie'] = series_name
@@ -75,3 +121,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
