@@ -1,5 +1,0 @@
-#!/bin/bash
-
-source .shellscript_functions
-
-python3 python_test.py $*
