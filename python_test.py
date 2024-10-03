@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Process some options.')
 parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
 parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
 parser.add_argument('--serie', type=str, required=True, help='Set series name.')
-parser.add_argument('--staffel', type=int, required=True, help='Season.')
+parser.add_argument('--staffel', type=int, default=-1, help='Season.')
 
 args = parser.parse_args()
 
@@ -38,16 +38,18 @@ def find_mp4_files(directory):
         task = progress.add_task("[cyan]Searching for MP4 files...", total=len(seasons))
         
         for season in seasons:
-            season_path = os.path.join(directory, season)
-            if not os.path.isdir(season_path):
-                console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
-                continue
-            
-            for file_name in os.listdir(season_path):
-                full_path = os.path.join(season_path, file_name)
-                if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
-                    mp4_files.append(full_path)
-
+            if args.staffel == -1 or args.staffel == int(season):
+                season_path = os.path.join(directory, season)
+                if not os.path.isdir(season_path):
+                    console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
+                    continue
+                
+                for file_name in os.listdir(season_path):
+                    full_path = os.path.join(season_path, file_name)
+                    if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
+                        mp4_files.append(full_path)
+            else:
+                debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
             # Update progress
             progress.update(task, advance=1)
 
