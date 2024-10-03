@@ -3,6 +3,7 @@ import sys
 import re
 import imagehash
 import argparse
+import pandas as pd
 from PIL import Image
 from rich.console import Console
 from rich.progress import Progress
@@ -45,6 +46,14 @@ def analyze_images(tmpdir):
     """Analyze images and return the last frame for each unique hash."""
     hash_to_image = {}
     last_file_to_frame = {}
+    info_file_path = os.path.join(tmpdir, ".intro_cutter_info.csv")
+
+    # Check if the info file exists and load it
+    if os.path.exists(info_file_path):
+        debug_print(args.debug, f"Loading existing data from {info_file_path}")
+        existing_info = pd.read_csv(info_file_path)
+        for _, row in existing_info.iterrows():
+            last_file_to_frame[row['filename']] = row['last_frame']
 
     for directory in os.listdir(tmpdir):
         dir_path = os.path.join(tmpdir, directory)
@@ -77,6 +86,12 @@ def analyze_images(tmpdir):
                     debug_print(args.debug, f"Found last frame for {thisfile}: {thisframe}")
 
     console.print(f"[green]Found last frames for {len(last_file_to_frame)} files.[/green]")
+
+    # Save results to .intro_cutter_info.csv
+    debug_print(args.debug, f"Saving analysis results to {info_file_path}")
+    info_df = pd.DataFrame(last_file_to_frame.items(), columns=['filename', 'last_frame'])
+    info_df.to_csv(info_file_path, index=False)
+
     return last_file_to_frame
 
 def main(args):
@@ -136,3 +151,4 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         console.print("[bold yellow]You cancelled the operation.[/bold yellow]")
         sys.exit(0)
+
