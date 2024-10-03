@@ -6,7 +6,6 @@ import argparse
 from PIL import Image
 from rich.console import Console
 from rich.progress import Progress
-from rich.text import Text
 import subprocess
 
 console = Console()
@@ -15,12 +14,12 @@ console = Console()
 process_tasks = []
 
 def die(message):
+    """Print an error message and exit."""
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(1)
 
 def run_command(command):
     """Run a shell command and track subprocess tasks."""
-    #console.print(f"[yellow]Running command:[/yellow] {command}")
     process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     process_tasks.append(process)
     return process
@@ -102,7 +101,7 @@ def main(args):
 
         with open(f"{args.dir}/.intro_endtime", 'a') as fh:
             for filename, frame in last_frames.items():
-                t = frame // 2
+                t = frame // 2  # Adjust frame to time (assuming 2 fps)
                 file = os.path.basename(filename)
                 fh.write(f"{file} ::: {t}\n")
                 console.print(f"[green]{file} ::: {t}[/green]")
