@@ -71,6 +71,8 @@ def analyze_images(tmpdir):
                 if str(this_hash) != "0000000000000000":
                     hash_to_image[str(this_hash)].append(filepath)
                     debug_print(args.debug, f"Hash {this_hash} for file {filepath}")
+    import pprint
+    pprint.pprint(hash_to_image)
 
     console.print(f"\n[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
 
