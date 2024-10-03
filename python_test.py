@@ -43,33 +43,33 @@ def find_mp4_files(directory):
         
         for season in seasons:
             debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
-            no_staffel_or_staffel_matches = (args.staffel == -1 or (args.staffel == int(season) and not args.max_staffel and not args.min_staffel))
-            no_max_staffel_or_staffel_matches = (args.max_staffel != -1 or (args.staffel == -1 and args.max_staffel <= int(season)))
-            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or (args.staffel == -1 and args.min_staffel >= int(season)))
+            season_number = int(season)
 
-            staffel_matches = no_staffel_or_staffel_matches or (no_max_staffel_or_staffel_matches and no_min_staffel_or_staffel_matches)
+            # Überprüfe, ob die Staffelnummer gültig ist
+            if args.staffel != -1 and args.staffel != season_number:
+                continue  # Staffel stimmt nicht überein, weiter zur nächsten
+            
+            if args.min_staffel != -1 and season_number < args.min_staffel:
+                continue  # Staffel liegt unter der minimalen Staffel
 
-            print(f"staffel_matches {season}: {staffel_matches}, no_staffel_or_staffel_matches: {no_staffel_or_staffel_matches}, no_min_staffel_or_staffel_matches: {no_min_staffel_or_staffel_matches}, no_max_staffel_or_staffel_matches: {no_max_staffel_or_staffel_matches}")
+            if args.max_staffel != -1 and season_number > args.max_staffel:
+                continue  # Staffel liegt über der maximalen Staffel
 
-            if staffel_matches:
-                season_path = os.path.join(directory, season)
-                sys.exit(0)
-                if not os.path.isdir(season_path):
-                    console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
-                else:
-                    for file_name in os.listdir(season_path):
-                        full_path = os.path.join(season_path, file_name)
-                        if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
-                            mp4_files.append(full_path)
-                        else:
-                            debug(f"{full_path} not found")
+            season_path = os.path.join(directory, season)
+            if not os.path.isdir(season_path):
+                console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
+            else:
+                for file_name in os.listdir(season_path):
+                    full_path = os.path.join(season_path, file_name)
+                    if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
+                        mp4_files.append(full_path)
+                    else:
+                        debug(f"{full_path} not found")
 
             # Update progress
             progress.update(task, advance=1)
 
-    if not mp4_files:
-        error("No MP4 files found.", 3)
-    
+    # Stelle sicher, dass immer eine Liste zurückgegeben wird
     return mp4_files
 
 def find_series_directory(serie_name: str, maindir: str) -> str:
