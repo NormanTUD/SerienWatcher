@@ -426,4 +426,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         console.print("[bold yellow]Process interrupted gracefully.[/bold yellow]")
         sys.exit(0)
-
