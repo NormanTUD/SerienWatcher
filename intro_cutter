@@ -1,7 +1,9 @@
 #!/bin/bash
 
-source .shellscript_functions
+SCRIPT_DIR=$(dirname $(realpath "$0"))
 
-python3 intro_cutter.py $*
+source $SCRIPT_DIR/.shellscript_functions
 
-rm -rf tmp
+python3 $SCRIPT_DIR/intro_cutter.py $*
+
+#rm -rf tmp
