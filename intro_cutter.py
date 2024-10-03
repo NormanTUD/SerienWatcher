@@ -11,14 +11,29 @@ import subprocess
 
 console = Console()
 
+# Global process variable
+process_tasks = []
+
 def die(message):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(1)
 
+def run_command(command):
+    """Run a shell command and track subprocess tasks."""
+    #console.print(f"[yellow]Running command:[/yellow] {command}")
+    process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    process_tasks.append(process)
+    return process
+
 def extract_frames(video_path, output_dir):
     """Extract frames from the video using ffmpeg."""
     command = f"ffmpeg -i \"{video_path}\" -r 2 -to 00:02:00 \"{output_dir}/output_%04d.png\""
-    subprocess.run(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+    process = run_command(command)
+    stdout, stderr = process.communicate()
+
+    if process.returncode != 0:
+        console.print(f"[bold red]FFmpeg error:[/bold red] {stderr.decode()}")
+        die("Failed to extract frames.")
 
 def analyze_images(tmpdir):
     """Analyze images and return the last frame for each unique hash."""
@@ -41,6 +56,8 @@ def analyze_images(tmpdir):
                 if str(this_hash) != "0000000000000000":
                     hash_to_image[str(this_hash)].append(filepath)
 
+    console.print(f"[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
+
     for k in sorted(hash_to_image, key=lambda k: len(hash_to_image[k]), reverse=True):
         for item in hash_to_image[k]:
             match = re.match(rf"{tmpdir}/(.*)/output_(\d*).png", item)
@@ -51,6 +68,7 @@ def analyze_images(tmpdir):
                 if thisfile not in last_file_to_frame or last_file_to_frame[thisfile] < thisframe:
                     last_file_to_frame[thisfile] = thisframe
 
+    console.print(f"[green]Found last frames for {len(last_file_to_frame)} files.[/green]")
     return last_file_to_frame
 
 def main(args):
@@ -61,20 +79,20 @@ def main(args):
     os.makedirs(tmpdir, exist_ok=True)
 
     # Process each video file
+    video_files = [f for f in os.listdir(args.dir) if f.endswith(".mp4")]
     with Progress(transient=True) as progress:
-        task = progress.add_task("[cyan]Processing videos...", total=len(os.listdir(args.dir)))
-        for video_file in os.listdir(args.dir):
-            if video_file.endswith(".mp4"):
-                video_path = os.path.join(args.dir, video_file)
-                md5_hash = os.path.basename(video_path)  # Placeholder for actual MD5 hash
+        task = progress.add_task("[cyan]Processing videos...", total=len(video_files))
+        for video_file in video_files:
+            video_path = os.path.join(args.dir, video_file)
+            md5_hash = os.path.basename(video_path)  # Placeholder for actual MD5 hash
 
-                output_dir = os.path.join(tmpdir, md5_hash)
-                os.makedirs(output_dir, exist_ok=True)
+            output_dir = os.path.join(tmpdir, md5_hash)
+            os.makedirs(output_dir, exist_ok=True)
 
-                if not os.path.exists(f"{args.dir}/.intro_endtime"):
-                    extract_frames(video_path, output_dir)
+            if not os.path.exists(f"{args.dir}/.intro_endtime"):
+                extract_frames(video_path, output_dir)
 
-                progress.update(task, advance=1)
+            progress.update(task, advance=1)
 
         # Analyze images
         last_frames = analyze_images(tmpdir)
@@ -86,6 +104,10 @@ def main(args):
                 fh.write(f"{file} ::: {t}\n")
                 console.print(f"[green]{file} ::: {t}[/green]")
 
+    # Wait for all subprocesses to complete
+    for process in process_tasks:
+        process.wait()
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
@@ -96,5 +118,5 @@ if __name__ == "__main__":
     
         main(args)
     except KeyboardInterrupt:
-        print("You cancelled.")
+        console.print("[bold yellow]You cancelled the operation.[/bold yellow]")
         sys.exit(0)
