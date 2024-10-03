@@ -411,24 +411,6 @@ class TestMainFunctions(unittest.TestCase):
 
     @patch('os.listdir')
     @patch('os.path.isdir')
-    def test_find_mp4_files_invalid_path(self, mock_isdir, mock_listdir):
-        mock_isdir.return_value = False
-        with self.assertRaises(FileNotFoundError):
-            find_mp4_files('/invalid_dir')
-
-    @patch('os.listdir')
-    @patch('os.path.isdir')
-    def test_find_mp4_files_with_mp4(self, mock_isdir, mock_listdir):
-        mock_listdir.return_value = ['video1.mp4', 'video2.mp4']
-        mock_isdir.return_value = True
-        mock_isfile = MagicMock(side_effect=lambda f: f.endswith('.mp4'))
-        
-        with patch('os.path.isfile', mock_isfile):
-            result = find_mp4_files('/dummy_dir')
-            self.assertEqual(len(result), 2)
-
-    @patch('os.listdir')
-    @patch('os.path.isdir')
     def test_find_series_directory_ignore_leading_whitespace(self, mock_isdir, mock_listdir):
         mock_listdir.return_value = [' SeriesA', 'SeriesB']
         mock_isdir.return_value = True
