@@ -179,6 +179,27 @@ class TestVideoProcessor(unittest.TestCase):
     def test_die_function(self, mock_exit, mock_isdir):
         die("Test error message")
         mock_exit.assert_called_once_with(1)
+        
+    @patch('PIL.Image.open')
+    @patch('imagehash.average_hash')
+    def test_analyze_images_with_existing_info(self, mock_average_hash, mock_open):
+        mock_open.return_value = MagicMock()  # Mock an image
+        mock_average_hash.return_value = imagehash.hex_to_hash('abcd1234')  # Example hash
+
+        # Create a mock temporary directory and files
+        tmpdir = "./tmp"
+        os.makedirs(tmpdir, exist_ok=True)
+        with open(os.path.join(tmpdir, ".intro_cutter_info.csv"), 'w') as f:
+            f.write("filename,last_frame\n")
+            f.write("video1,10\n")
+
+        # Create mock directories and files
+        os.makedirs(os.path.join(tmpdir, "video1"), exist_ok=True)
+        with open(os.path.join(tmpdir, "video1", "output_0001.png"), 'wb') as f:
+            f.write(b'\x89PNG\r\n\x1a\n')
+
+        last_frames = analyze_images(tmpdir)
+        self.assertEqual(last_frames, {"video1": 1})  # Expect last_frame to be updated to 1
 
 if __name__ == "__main__":
     try:
