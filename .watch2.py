@@ -235,10 +235,12 @@ def main():
     
     if args.maindir == "":
         console.print("[red]--maindir needs to be set[/red]")
+        sys.exit(1)
     
     if args.serie == "":
         console.print("[red]--serie needs to be set[/red]")
-    
+        sys.exit(1)
+
     global db_entries
     # Check if the main directory exists
     if not os.path.isdir(args.maindir):
