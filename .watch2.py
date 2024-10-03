@@ -43,6 +43,9 @@ def find_mp4_files(directory):
         
         for season in seasons:
             debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
+            if not season.isnumeric():
+                continue
+
             season_number = int(season)
 
             # Überprüfe, ob die Staffelnummer gültig ist
