@@ -161,6 +161,25 @@ class TestVideoProcessor(unittest.TestCase):
         mock_popen.assert_called_once_with(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         self.assertEqual(process, mock_process)
 
+    @patch('subprocess.Popen')
+    def test_run_command(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.communicate.return_value = (b'', b'')
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        command = "echo test"
+        process = run_command(command)
+
+        mock_popen.assert_called_once_with(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(process, mock_process)
+
+    @patch('os.path.isdir')
+    @patch('sys.exit')
+    def test_die_function(self, mock_exit, mock_isdir):
+        die("Test error message")
+        mock_exit.assert_called_once_with(1)
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
