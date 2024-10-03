@@ -60,8 +60,6 @@ def main(args):
     tmpdir = os.path.join(args.tmp, "frames")
     os.makedirs(tmpdir, exist_ok=True)
 
-    hash_to_file = {}
-
     # Process each video file
     with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Processing videos...", total=len(os.listdir(args.dir)))
@@ -69,8 +67,6 @@ def main(args):
             if video_file.endswith(".mp4"):
                 video_path = os.path.join(args.dir, video_file)
                 md5_hash = os.path.basename(video_path)  # Placeholder for actual MD5 hash
-
-                hash_to_file[md5_hash] = video_path
 
                 output_dir = os.path.join(tmpdir, md5_hash)
                 os.makedirs(output_dir, exist_ok=True)
