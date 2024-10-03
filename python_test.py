@@ -136,7 +136,7 @@ def select_mp4_file(mp4_files, db_entries, last_played=None):
 
         # Überprüfe, ob die Datei die zuletzt abgespielte ist
         if normalized_last_played and normalized_last_played == normalized_path:
-            print(f"Skipping last played file: {mp4_file}")  # Debugging-Ausgabe
+            debug(f"Skipping last played file: {mp4_file}")  # Debugging-Ausgabe
             continue
 
         candidates.append((mp4_file, db_entries[normalized_path]))
