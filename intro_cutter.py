@@ -92,7 +92,7 @@ def main(args):
             if not os.path.exists(f"{args.dir}/.intro_endtime"):
                 extract_frames(video_path, output_dir)
             else:
-                console.print(f"[red]{args.dir}/.intro_endtime already exists.[/red]")
+                console.print(f"\n[red]{args.dir}/.intro_endtime already exists.[/red]")
                 sys.exit(0)
 
             progress.update(task, advance=1)
