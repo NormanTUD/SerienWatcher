@@ -1,3 +1,7 @@
 python-vlc
 rich
 Levenshtein
+Pillow
+imagehash
+rich
+ffmpeg-python
