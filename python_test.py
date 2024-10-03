@@ -43,9 +43,14 @@ def find_mp4_files(directory):
         
         for season in seasons:
             debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
-            if (args.staffel == -1 or args.staffel == int(season)) or ((args.max_staffel != -1 or args.max_staffel <= int(season)) and (args.min_staffel != -1 or args.min_staffel >= int(season))):
+            no_staffel_or_staffel_matches = (args.staffel == -1 or args.staffel == int(season))
+            no_max_staffel_or_staffel_matches = (args.max_staffel != -1 or args.max_staffel <= int(season))
+            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or args.min_staffel >= int(season)
+                                                 
+            if no_staffel_or_staffel_matches or (no_max_staffel_or_staffel_matches and no_min_staffel_or_staffel_matches)):
                 season_path = os.path.join(directory, season)
                 print(f"!!! season_path: {season_path}")
+                sys.exit(0)
                 if not os.path.isdir(season_path):
                     console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
                     continue
