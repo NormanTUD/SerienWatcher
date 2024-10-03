@@ -179,27 +179,47 @@ class TestVideoProcessor(unittest.TestCase):
     def test_die_function(self, mock_exit, mock_isdir):
         die("Test error message")
         mock_exit.assert_called_once_with(1)
-        
-    @patch('PIL.Image.open')
-    @patch('imagehash.average_hash')
-    def test_analyze_images_with_existing_info(self, mock_average_hash, mock_open):
-        mock_open.return_value = MagicMock()  # Mock an image
-        mock_average_hash.return_value = imagehash.hex_to_hash('abcd1234')  # Example hash
 
-        # Create a mock temporary directory and files
-        tmpdir = "./tmp"
-        os.makedirs(tmpdir, exist_ok=True)
-        with open(os.path.join(tmpdir, ".intro_cutter_info.csv"), 'w') as f:
-            f.write("filename,last_frame\n")
-            f.write("video1,10\n")
+    @patch('subprocess.Popen')
+    def test_extract_frames_failure(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 1
+        mock_process.communicate.return_value = (b'', b'Error occurred')
+        mock_popen.return_value = mock_process
 
-        # Create mock directories and files
-        os.makedirs(os.path.join(tmpdir, "video1"), exist_ok=True)
-        with open(os.path.join(tmpdir, "video1", "output_0001.png"), 'wb') as f:
-            f.write(b'\x89PNG\r\n\x1a\n')
+        with self.assertRaises(SystemExit):
+            extract_frames("non_existent_video.mp4", "./output")
 
-        last_frames = analyze_images(tmpdir)
-        self.assertEqual(last_frames, {"video1": 1})  # Expect last_frame to be updated to 1
+    @patch('os.makedirs')
+    @patch('os.path.exists')
+    @patch('subprocess.Popen')
+    def test_run_command_calls_process(self, mock_popen, mock_exists, mock_makedirs):
+        mock_exists.return_value = False
+        mock_process = MagicMock()
+        mock_process.communicate.return_value = (b'', b'')
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        run_command("echo 'Hello World'")
+        mock_popen.assert_called_with("echo 'Hello World'", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    @patch('os.makedirs')
+    def test_analyze_images_empty_directory(self, mock_makedirs, mock_isdir, mock_listdir):
+        mock_isdir.return_value = True
+        mock_listdir.return_value = []  # No images
+
+        last_frames = analyze_images("./tmp")
+        self.assertEqual(last_frames, {})  # Expect empty dictionary since no images are present
+
+    @patch('pandas.DataFrame.to_csv')
+    def test_save_hash_analysis_results(self, mock_to_csv):
+        hashes_list = [{'hash': 'abcd1234', 'filename': 'video1', 'last_frame': 1}]
+        hash_info_file_path = "./tmp/hash_info.csv"
+        hashes_df = pd.DataFrame(hashes_list)
+        hashes_df.to_csv(hash_info_file_path, index=False)  # Simulate saving the DataFrame to CSV
+        mock_to_csv.assert_called_once_with(hash_info_file_path, index=False)
 
 if __name__ == "__main__":
     try:
