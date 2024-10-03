@@ -4,6 +4,8 @@ import os
 import sys
 import vlc
 import argparse
+import random
+import time
 from rich.console import Console
 from rich.progress import Progress
 from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
@@ -79,6 +81,63 @@ def find_series_directory(serie_name: str, maindir: str) -> str:
 
     error("No suitable series directory found.", 3)
 
+def load_db_file(db_file_path):
+    """Lädt die .db.txt-Datei und gibt eine Map mit Pfaden und Unix-Zeiten zurück."""
+    if not os.path.isfile(db_file_path):
+        return {}
+
+    db_entries = {}
+    with open(db_file_path, 'r') as db_file:
+        for line in db_file:
+            path, unix_time = line.strip().split(':::')
+            db_entries[path] = int(unix_time)
+
+    return db_entries
+
+def update_db_file(db_file_path, mp4_file, unix_time):
+    """Aktualisiert die .db.txt-Datei mit dem neuen Eintrag."""
+    with open(db_file_path, 'a') as db_file:
+        db_file.write(f"{mp4_file}:::{unix_time}\n")
+
+def select_mp4_file(mp4_files, db_entries):
+    """Wählt eine MP4-Datei basierend auf den Unix-Zeiten aus."""
+    candidates = []
+    for mp4_file in mp4_files:
+        if mp4_file not in db_entries:  # Kein Eintrag vorhanden
+            return mp4_file  # Sofort zurückgeben
+
+        candidates.append((mp4_file, db_entries[mp4_file]))
+
+    # Sortiere nach der Unix-Zeit (älteste zuerst) und wähle zufällig
+    candidates.sort(key=lambda x: x[1])  # Älteste zuerst
+    weights = [1 / (time.time() - entry[1]) for entry in candidates]  # Gewichtung basierend auf der Zeit
+    total_weight = sum(weights)
+
+    # Auswahl einer Datei basierend auf Gewichtung
+    selection = random.choices(candidates, weights=weights, k=1)
+    return selection[0][0]
+
+class VLC:
+    def __init__(self):
+        self.Player = Instance('--loop')
+    def addPlaylist(self, path):
+        self.mediaList = self.Player.media_list_new()
+        songs = os.listdir(path)
+        for s in songs:
+            self.mediaList.add_media(self.Player.media_new(os.path.join(path,s)))
+        self.listPlayer = self.Player.media_list_player_new()
+        self.listPlayer.set_media_list(self.mediaList)
+    def play(self):
+        self.listPlayer.play()
+    def next(self):
+        self.listPlayer.next()
+    def pause(self):
+        self.listPlayer.pause()
+    def previous(self):
+        self.listPlayer.previous()
+    def stop(self):
+        self.listPlayer.stop()
+
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
     parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
@@ -101,7 +160,22 @@ def main():
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
 
-    console.print(mp4_files)  # Changed print to console.print for consistency
+    # Load existing entries from .db.txt
+    db_file_path = os.path.join(args.maindir, '.db.txt')
+    db_entries = load_db_file(db_file_path)
+
+    # Select an MP4 file to play
+    selected_file = select_mp4_file(mp4_files, db_entries)
+
+    # Update the .db.txt file with the current Unix time if needed
+    if selected_file not in db_entries:
+        current_time = int(time.time())
+        update_db_file(db_file_path, selected_file, current_time)
+        console.print(f"[bold green]Added new entry for:[/bold green] {selected_file} with time {current_time}")
+
+    # Start VLC with the selected file
+    console.print(f"[bold blue]Starting VLC for:[/bold blue] {selected_file}")
+
 
 if __name__ == '__main__':
     try:
