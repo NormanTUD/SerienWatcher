@@ -1,5 +1,36 @@
 #!/bin/bash
 
+function keep_idle {
+	SLEEPTIME=60
+
+	if ! command -v xdotool 2>/dev/null >/dev/null; then
+		echo "xdotool not found. Cannot use keep_idle."
+		return
+	fi
+
+	if ! command -v xprintidle 2>/dev/null >/dev/null; then
+		echo "xprintidle not found. Cannot use keep_idle."
+		return
+	fi
+
+	while true; do
+		eval $(xdotool getmouselocation --shell)
+
+		IDLETIME=$(xprintidle)
+		IDLETIME=$(($IDLETIME/1000))
+		if [[ $IDLETIME -gt $SLEEPTIME ]]; then
+			xdotool mousemove $X $((Y-1))
+		fi
+
+		sleep $SLEEPTIME
+	done
+}
+
 source .shellscript_functions
 
-python3 .watch2.py $*
+keep_idle &
+python3 .watch2.py $* &
+
+wait %2
+
+kill %1
