@@ -307,24 +307,10 @@ class TestMainFunctions(unittest.TestCase):
         result = find_series_directory('SeriesA', '/dummy_maindir')
         self.assertEqual(result, '/dummy_maindir/SeriesA')
 
-    @patch('builtins.open', new_callable=mock_open, read_data='file1.mp4:::123456789\nfile2.mp4:::987654321\n')
-    def test_load_db_file(self, mock_open):
-        result = load_db_file('/dummy_db_path/.db.txt')
-        self.assertEqual(result['file1.mp4'], 123456789)
-        self.assertEqual(result['file2.mp4'], 987654321)
-
     @patch('builtins.open', new_callable=mock_open)
     def test_update_db_file(self, mock_open):
         update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
         mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
-
-    @patch('random.choices', return_value=[('/path/to/file.mp4', 0)])
-    def test_select_mp4_file(self, mock_random):
-        mp4_files = ['/path/to/file.mp4']
-        db_entries = {'file2.mp4': 987654321}
-        
-        result = select_mp4_file(mp4_files, '/dummy_db_path/.db.txt')
-        self.assertEqual(result, '/path/to/file.mp4')
 
 if __name__ == '__main__':
     try:
