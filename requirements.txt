@@ -5,3 +5,4 @@ Pillow
 imagehash
 rich
 ffmpeg-python
+pandas
