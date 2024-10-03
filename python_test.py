@@ -163,8 +163,7 @@ def select_mp4_file(mp4_files, db_entries, last_played=None):
 def play_video(video_path):
     # Start VLC player with the video and option to close VLC when the video ends
     # Trying to start VLC with a non-existing file to check if it will exit on its own.
-    process = subprocess.Popen(['vlc', '--play-and-exit', video_path, '/dev/doesnt_exist'], 
-                               stderr=subprocess.PIPE, stdout=subprocess.PIPE)
+    process = subprocess.Popen(['vlc', '--play-and-exit', video_path, '/dev/doesnt_exist'], stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 
     # Wait until the VLC process ends and capture stdout and stderr
     stdout, stderr = process.communicate()
@@ -206,7 +205,7 @@ def main():
             console.print(f"[bold green]Added new entry for:[/bold green] {selected_file} with time {current_time}")
 
         # Start VLC with the selected file
-        console.print(f"[bold blue]vlc [/bold blue] {selected_file}")
+        console.print(f"[bold blue]vlc [/bold blue] [italic green]{selected_file}[/italic green]")
 
         # Play video and check output
         stdout, stderr = play_video(selected_file)
