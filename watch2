@@ -1,5 +1,6 @@
 #!/bin/bash
 
+SCRIPT_DIR=$(dirname $(realpath "$0"))
 function keep_idle {
 	SLEEPTIME=60
 
@@ -32,10 +33,10 @@ if ! command -v vlc 2>/dev/null >/dev/null; then
 fi
 
 
-source .shellscript_functions
+source $SCRIPT_DIR/.shellscript_functions
 
 keep_idle &
-python3 .watch2.py $* &
+python3 $SCRIPT_DIR/.watch2.py $* &
 
 wait %2
 
