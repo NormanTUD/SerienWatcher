@@ -383,6 +383,24 @@ class TestMainFunctions(unittest.TestCase):
         result = find_series_directory('SERIESA', '/dummy_maindir')
         self.assertEqual(result, '/dummy_maindir/seriesa')
 
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_no_match(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['AnotherSeries', 'DifferentSeries']
+        mock_isdir.return_value = True
+        
+        with self.assertRaises(SystemExit):
+            find_series_directory('SeriesX', '/dummy_maindir')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_empty_directory(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = []
+        mock_isdir.return_value = True
+        
+        with self.assertRaises(SystemExit):
+            find_series_directory('SeriesA', '/dummy_maindir')
+
 
 if __name__ == '__main__':
     try:
