@@ -15,31 +15,34 @@ def error(message, exit_code=1):
     sys.exit(exit_code)
 
 def find_mp4_files(directory):
-    #print(directory)
     """ Suche nach MP4-Dateien im angegebenen Verzeichnis. """
     mp4_files = []
-
+    seasons = os.listdir(directory)
+    
     with Progress(transient=True) as progress:
-        task = progress.add_task("[cyan]Durchsuche nach MP4-Dateien...", total=len(os.listdir(directory)))
+        task = progress.add_task("[cyan]Durchsuche nach MP4-Dateien...", total=len(seasons))
         
-        for season in os.listdir(directory):
-            # Durchsuche die Dateien im angegebenen Verzeichnis
-            for file_name in os.listdir(os.path.join(directory, season)):
-                full_path = os.path.join(directory,  season, file_name)
-
+        for season in seasons:
+            season_path = os.path.join(directory, season)
+            if not os.path.isdir(season_path):
+                console.print(f"[bold yellow]Warnung:[/bold yellow] {season_path} ist kein Verzeichnis.")
+                continue
+            
+            for file_name in os.listdir(season_path):
+                full_path = os.path.join(season_path, file_name)
                 if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
                     mp4_files.append(full_path)
 
             # Fortschritt aktualisieren
             progress.update(task, advance=1)
 
-    # Überprüfen der gefundenen MP4-Dateien
-    if len(mp4_files) == 0:
+    if not mp4_files:
         error("Keine MP4-Dateien gefunden.", 3)
     
     return mp4_files
 
-def find_series_directory(serie_name, maindir):
+def find_series_directory(serie_name: str, maindir: str) -> str:
+    """ Sucht das Verzeichnis für die angegebene Serie. """
     exact_matches = []
     substring_matches = []
     potential_matches = []
@@ -50,9 +53,7 @@ def find_series_directory(serie_name, maindir):
         for dir_name in os.listdir(maindir):
             full_path = os.path.join(maindir, dir_name)
             if os.path.isdir(full_path):
-                if dir_name == serie_name:
-                    exact_matches.append(full_path)
-                elif dir_name.lower() == serie_name.lower():
+                if dir_name.lower() == serie_name.lower():
                     exact_matches.append(full_path)
                 elif serie_name.lower() in dir_name.lower():
                     substring_matches.append(full_path)
@@ -61,6 +62,7 @@ def find_series_directory(serie_name, maindir):
 
             progress.update(task, advance=1)
 
+    # Processing results for matches
     if len(exact_matches) == 1:
         return exact_matches[0]
     elif len(exact_matches) > 1:
@@ -76,7 +78,6 @@ def find_series_directory(serie_name, maindir):
         error(f"Kein passendes Serienverzeichnis gefunden. Nahegelegene Übereinstimmung: {closest_match}", 3)
 
     error("Kein passendes Serienverzeichnis gefunden.", 3)
-
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
