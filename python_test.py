@@ -17,10 +17,11 @@ def error(message, exit_code=1):
 
 class MainApp(App):
     series_name: Reactive[str] = Reactive("")
+    filtered_series: Reactive[list] = Reactive([])
 
     def compose(self) -> ComposeResult:
         yield Static("Series Name:")
-        yield Input(placeholder="Enter Series Name", name="series_input")
+        yield Input(placeholder="Enter Series Name", name="series_input", on_change=self.on_series_input_change)
         yield Static("Available Series:")
         
         # Create the ListView without items initially
@@ -32,22 +33,43 @@ class MainApp(App):
     async def on_mount(self) -> None:
         # Populate series names once the app is mounted
         self.series_names = self.get_available_series()
-        self.populate_series_list()
+        await self.populate_series_list(self.series_names)
 
-    def populate_series_list(self):
-        # Add series names to the ListView
-        for series in self.series_names:
+    async def populate_series_list(self, series_names):
+        # Clear the current list
+        self.series_list_view.clear()
+
+        # Add filtered series names to the ListView
+        for series in series_names:
             list_item = ListItem(Static(series))  # Create a ListItem for each series with Static widget
             self.series_list_view.append(list_item)  # Add it to the ListView
+        
+        # Automatically submit if only one series is left
+        if len(series_names) == 1:
+            self.series_name = series_names[0]
+            await self.on_submit()
+
+    async def on_series_input_change(self, event):
+        input_widget = self.query_one(Input)
+        search_value = input_widget.value.strip().lower()
+
+        # Filter the series names based on input
+        filtered = [name for name in self.series_names if search_value in name.lower()]
+        await self.populate_series_list(filtered)
 
     async def on_button_pressed(self, event: Button.Pressed) -> None:
         if event.button.id == "submit_button":
             input_widget = self.query_one(Input)
             self.series_name = input_widget.value.strip()
-            
-            # Stop the application
-            self.exit()  # No await needed
+            await self.on_submit()
 
+    async def on_list_item_pressed(self, event) -> None:
+        self.series_name = event.item.child.text.strip()
+        await self.on_submit()
+
+    async def on_submit(self):
+        # Stop the application and return the selected series name
+        self.exit()  # No await needed
 
     def get_available_series(self):
         # Assuming args.maindir is available in the scope
@@ -104,7 +126,9 @@ def main():
     with Progress() as progress:
         task = progress.add_task("[cyan]Searching for directories...[/cyan]", total=None)
 
-        for root, dirs, files in os.walk(options['maindir']):
+        # Only search within the selected series directory
+        series_dir = os.path.join(options['maindir'], options['serie'])
+        for root, dirs, files in os.walk(series_dir):
             # Check if the directory name is numeric (2nd level only)
             if os.path.basename(root).isdigit():
                 # Check parent directory for numeric directories
@@ -120,5 +144,7 @@ def main():
         progress.stop()
 
 if __name__ == '__main__':
-    main()
-
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("Cancelled by pressing CTRL-c.")
