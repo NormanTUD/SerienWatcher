@@ -8,6 +8,8 @@ from PIL import Image
 from rich.console import Console
 from rich.progress import Progress
 import subprocess
+import unittest
+from unittest.mock import patch, MagicMock
 
 console = Console()
 
@@ -71,14 +73,11 @@ def analyze_images(tmpdir):
                 if str(this_hash) != "0000000000000000":
                     hash_to_image[str(this_hash)].append(filepath)
                     debug_print(args.debug, f"Hash {this_hash} for file {filepath}")
-    import pprint
-    pprint.pprint(hash_to_image)
 
     console.print(f"\n[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
 
     # Store hashes and frames if the option is enabled
-    if args.save_hashes:
-        hashes_list = []
+    hashes_list = []
 
     for k in sorted(hash_to_image, key=lambda k: len(hash_to_image[k]), reverse=True):
         for item in hash_to_image[k]:
@@ -91,18 +90,16 @@ def analyze_images(tmpdir):
                     last_file_to_frame[thisfile] = thisframe
                     debug_print(args.debug, f"Found last frame for {thisfile}: {thisframe}")
                     
-                    # Save to hashes list if option is enabled
-                    if args.save_hashes:
-                        hashes_list.append({"hash": k, "filename": thisfile, "last_frame": thisframe})
+                    # Save to hashes list
+                    hashes_list.append({"hash": k, "filename": thisfile, "last_frame": thisframe})
 
     console.print(f"[green]Found last frames for {len(last_file_to_frame)} files.[/green]")
 
     # Save results to .intro_cutter_info.csv
-    if args.save_hashes:
-        hash_info_file_path = os.path.join(tmpdir, "hashes_info.csv")
-        debug_print(args.debug, f"Saving hash analysis results to {hash_info_file_path}")
-        hashes_df = pd.DataFrame(hashes_list)
-        hashes_df.to_csv(hash_info_file_path, index=False)
+    hash_info_file_path = os.path.join(tmpdir, "hashes_info.csv")
+    debug_print(args.debug, f"Saving hash analysis results to {hash_info_file_path}")
+    hashes_df = pd.DataFrame(hashes_list)
+    hashes_df.to_csv(hash_info_file_path, index=False)
 
     return last_file_to_frame
 
@@ -150,6 +147,34 @@ def main(args):
     for process in process_tasks:
         process.wait()
 
+class TestVideoProcessor(unittest.TestCase):
+    @patch('subprocess.Popen')
+    def test_run_command(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.communicate.return_value = (b'', b'')
+        mock_process.returncode = 0
+        mock_popen.return_value = mock_process
+
+        command = "echo test"
+        process = run_command(command)
+
+        mock_popen.assert_called_once_with(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        self.assertEqual(process, mock_process)
+
+    @patch('os.path.exists', return_value=True)
+    @patch('pandas.read_csv')
+    def test_analyze_images_with_existing_info(self, mock_read_csv, mock_exists):
+        mock_read_csv.return_value = pd.DataFrame({
+            'filename': ['file1', 'file2'],
+            'last_frame': [1, 2]
+        })
+
+        tmpdir = "./tmp"
+        result = analyze_images(tmpdir)
+
+        expected = {'file1': 1, 'file2': 2}
+        self.assertEqual(result, expected)
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
@@ -159,7 +184,10 @@ if __name__ == "__main__":
         parser.add_argument("--save_hashes", action='store_true', help="Save hashes and frames to CSV.")
 
         args = parser.parse_args()
-    
+
+        if os.getenv('tests'):
+            unittest.main(argv=[sys.argv[0]])
+
         main(args)
     except KeyboardInterrupt:
         console.print("[bold yellow]You cancelled the operation.[/bold yellow]")
