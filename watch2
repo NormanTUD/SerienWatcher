@@ -26,6 +26,12 @@ function keep_idle {
 	done
 }
 
+if ! command -v vlc 2>/dev/null >/dev/null; then
+	echo "vlc not found. Cannot use watch2."
+	return
+fi
+
+
 source .shellscript_functions
 
 keep_idle &
