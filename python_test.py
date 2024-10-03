@@ -206,7 +206,7 @@ def main():
             console.print(f"[bold green]Added new entry for:[/bold green] {selected_file} with time {current_time}")
 
         # Start VLC with the selected file
-        console.print(f"[bold blue]Starting VLC for:[/bold blue] {selected_file}")
+        console.print(f"[bold blue]vlc [/bold blue] {selected_file}")
 
         # Play video and check output
         stdout, stderr = play_video(selected_file)
