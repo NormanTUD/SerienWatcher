@@ -74,6 +74,10 @@ def analyze_images(tmpdir):
 
     console.print(f"\n[cyan]Analyzing {len(hash_to_image)} unique hashes...[/cyan]")
 
+    # Store hashes and frames if the option is enabled
+    if args.save_hashes:
+        hashes_list = []
+
     for k in sorted(hash_to_image, key=lambda k: len(hash_to_image[k]), reverse=True):
         for item in hash_to_image[k]:
             match = re.match(rf"{tmpdir}/(.*)/output_(\d*).png", item)
@@ -84,13 +88,19 @@ def analyze_images(tmpdir):
                 if thisfile not in last_file_to_frame or last_file_to_frame[thisfile] < thisframe:
                     last_file_to_frame[thisfile] = thisframe
                     debug_print(args.debug, f"Found last frame for {thisfile}: {thisframe}")
+                    
+                    # Save to hashes list if option is enabled
+                    if args.save_hashes:
+                        hashes_list.append({"hash": k, "filename": thisfile, "last_frame": thisframe})
 
     console.print(f"[green]Found last frames for {len(last_file_to_frame)} files.[/green]")
 
     # Save results to .intro_cutter_info.csv
-    debug_print(args.debug, f"Saving analysis results to {info_file_path}")
-    info_df = pd.DataFrame(last_file_to_frame.items(), columns=['filename', 'last_frame'])
-    info_df.to_csv(info_file_path, index=False)
+    if args.save_hashes:
+        hash_info_file_path = os.path.join(tmpdir, "hashes_info.csv")
+        debug_print(args.debug, f"Saving hash analysis results to {hash_info_file_path}")
+        hashes_df = pd.DataFrame(hashes_list)
+        hashes_df.to_csv(hash_info_file_path, index=False)
 
     return last_file_to_frame
 
@@ -144,6 +154,7 @@ if __name__ == "__main__":
         parser.add_argument("--dir", type=str, required=True, help="Directory containing video files.")
         parser.add_argument("--tmp", type=str, default="./tmp", help="Temporary directory for extracted frames.")
         parser.add_argument("--debug", action='store_true', help="Enable debug output.")
+        parser.add_argument("--save_hashes", action='store_true', help="Save hashes and frames to CSV.")
 
         args = parser.parse_args()
     
@@ -151,4 +162,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         console.print("[bold yellow]You cancelled the operation.[/bold yellow]")
         sys.exit(0)
-
