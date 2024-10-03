@@ -221,6 +221,166 @@ class TestVideoProcessor(unittest.TestCase):
         hashes_df.to_csv(hash_info_file_path, index=False)  # Simulate saving the DataFrame to CSV
         mock_to_csv.assert_called_once_with(hash_info_file_path, index=False)
 
+    # 2. Test that die function calls sys.exit with the correct code
+    @patch('sys.exit')
+    def test_die_calls_exit(self, mock_exit):
+        die("Error")
+        mock_exit.assert_called_once_with(1)
+
+    # 3. Test if the debug_print function works correctly when debug is True
+    @patch('rich.console.Console.print')
+    def test_debug_print_enabled(self, mock_print):
+        args.debug = True
+        debug_print(args.debug, "Debug message")
+        mock_print.assert_called_once_with("[bold yellow]Debug:[/bold yellow] Debug message")
+
+    # 4. Test if the debug_print function does nothing when debug is False
+    @patch('rich.console.Console.print')
+    def test_debug_print_disabled(self, mock_print):
+        args.debug = False
+        debug_print(args.debug, "Debug message")
+        mock_print.assert_not_called()
+
+    # 5. Test if run_command handles successful command execution
+    @patch('subprocess.Popen')
+    def test_run_command_success(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate.return_value = (b'output', b'')
+        mock_popen.return_value = mock_process
+
+        process = run_command("echo success")
+        self.assertEqual(process, mock_process)
+
+
+    # 7. Test if extract_frames creates the expected output files
+    @patch('subprocess.Popen')
+    def test_extract_frames_creates_files(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate.return_value = (b'', b'')
+        mock_popen.return_value = mock_process
+
+        extract_frames("test_video.mp4", "./output")
+        # Verify that files were created correctly
+
+    # 8. Test if analyze_images handles empty directories
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_analyze_images_empty_directory(self, mock_isdir, mock_listdir):
+        mock_isdir.return_value = True
+        mock_listdir.return_value = []
+        result = analyze_images("./tmp")
+        self.assertEqual(result, {})
+
+
+    # 15. Test if main skips processing when .intro_endtime exists
+    @patch('os.path.exists')
+    def test_main_skips_if_intro_endtime_exists(self, mock_exists):
+        mock_exists.return_value = True
+        with self.assertRaises(SystemExit):
+            main(args)
+
+    # 20. Test if analyze_images finds the last frames correctly
+    @patch('os.listdir')
+    @patch('imagehash.average_hash')
+    def test_analyze_images_find_last_frames(self, mock_average_hash, mock_listdir):
+        mock_listdir.return_value = ["output_0001.png", "output_0002.png"]
+        mock_average_hash.return_value = imagehash.hex_to_hash("0"*16)
+        result = analyze_images("./tmp")
+        # Verify that the last frames are correctly identified
+
+    # 22. Test if main handles the presence of .intro_endtime gracefully
+    @patch('os.path.exists')
+    def test_main_intro_endtime_exists(self, mock_exists):
+        mock_exists.return_value = True
+        with self.assertRaises(SystemExit):
+            main(args)
+
+    # 24. Test if analyze_images handles corrupted image files
+    @patch('os.listdir')
+    @patch('PIL.Image.open', side_effect=OSError)
+    def test_analyze_images_handle_corrupted_images(self, mock_open, mock_listdir):
+        mock_listdir.return_value = ["corrupted_image.png"]
+        result = analyze_images("./tmp")
+        self.assertEqual(result, {})
+
+    # 25. Test if analyze_images handles unexpected file types gracefully
+    @patch('os.listdir')
+    def test_analyze_images_ignore_non_image_files(self, mock_listdir):
+        mock_listdir.return_value = ["file.txt", "file.mp3"]
+        result = analyze_images("./tmp")
+        self.assertEqual(result, {})
+
+
+
+    # 33. Test if analyze_images handles images with no hash correctly
+    @patch('os.listdir')
+    @patch('imagehash.average_hash', side_effect=ValueError)
+    def test_analyze_images_no_hash(self, mock_hash, mock_listdir):
+        mock_listdir.return_value = ["output_0001.png"]
+        result = analyze_images("./tmp")
+        self.assertEqual(result, {})
+    # 35. Test if run_command returns output for successful command
+    @patch('subprocess.Popen')
+    def test_run_command_returns_output(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate.return_value = (b'output', b'')
+        mock_popen.return_value = mock_process
+
+        output = run_command("echo hello")
+        self.assertEqual(output.communicate(), (b'output', b''))
+
+
+    # 39. Test if extract_frames raises exception for unsupported video formats
+    @patch('subprocess.Popen')
+    def test_extract_frames_unsupported_format(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 1
+        mock_process.communicate.return_value = (b'', b'Unsupported format')
+        mock_popen.return_value = mock_process
+
+        with self.assertRaises(SystemExit):
+            extract_frames("test_video.wmv", "./output")
+
+
+    # 42. Test if extract_frames outputs the correct number of frames
+    @patch('subprocess.Popen')
+    def test_extract_frames_output_frames_count(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate.return_value = (b'', b'')
+        mock_popen.return_value = mock_process
+        extract_frames("test_video.mp4", "./output")
+        # Verify that the expected number of frames are created
+
+    # 43. Test if analyze_images raises error on directory access issues
+    @patch('os.listdir', side_effect=OSError)
+    def test_analyze_images_directory_access(self, mock_listdir):
+        with self.assertRaises(OSError):
+            analyze_images("./tmp")
+
+    # 46. Test if analyze_images processes frames with different formats
+    @patch('os.listdir')
+    def test_analyze_images_different_formats(self, mock_listdir):
+        mock_listdir.return_value = ["frame1.jpg", "frame2.png"]
+        result = analyze_images("./tmp")
+        # Verify that frames of different formats are processed correctly
+
+    # 49. Test if extract_frames handles permission errors correctly
+    @patch('subprocess.Popen')
+    def test_extract_frames_permission_error(self, mock_popen):
+        mock_process = MagicMock()
+        mock_process.returncode = 1
+        mock_process.communicate.return_value = (b'', b'Permission denied')
+        mock_popen.return_value = mock_process
+
+        with self.assertRaises(SystemExit):
+            extract_frames("test_video.mp4", "./output")
+
+
+
 if __name__ == "__main__":
     try:
         parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
