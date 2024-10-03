@@ -38,6 +38,7 @@ def find_mp4_files(directory):
         task = progress.add_task("[cyan]Searching for MP4 files...", total=len(seasons))
         
         for season in seasons:
+            debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
             if args.staffel == -1 or args.staffel == int(season):
                 season_path = os.path.join(directory, season)
                 if not os.path.isdir(season_path):
@@ -48,8 +49,7 @@ def find_mp4_files(directory):
                     full_path = os.path.join(season_path, file_name)
                     if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
                         mp4_files.append(full_path)
-            else:
-                debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
+
             # Update progress
             progress.update(task, advance=1)
 
