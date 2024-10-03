@@ -60,18 +60,19 @@ def main():
     with Progress() as progress:
         task = progress.add_task("[cyan]Searching for directories...[/cyan]", total=None)
 
-        for entry in os.listdir(options['maindir']):
-            full_path = os.path.join(options['maindir'], entry)
+        for root, dirs, files in os.walk(options['maindir']):
+            # Check if the directory name is numeric (2nd level only)
+            if os.path.basename(root).isdigit():
+                # Check parent directory for numeric directories
+                parent_dir = os.path.dirname(root)
+                if os.path.basename(parent_dir).isalpha():  # Ensure the parent is not numeric
+                    mp4_files = [f for f in files if f.endswith('.mp4')]
+                    if mp4_files:
+                        progress.update(task, advance=1)
+                        console.print(f"\nFound directory: [bold green]{root}[/bold green]")
+                        for mp4 in mp4_files:
+                            console.print(f" - [bold blue]{mp4}[/bold blue]")
 
-            # Check if the entry is a directory and consists only of numbers
-            if os.path.isdir(full_path) and entry.isdigit():
-                mp4_files = [f for f in os.listdir(full_path) if f.endswith('.mp4')]
-                if mp4_files:
-                    progress.update(task, advance=1)
-                    console.print(f"\nFound directory: [bold green]{full_path}[/bold green]")
-                    for mp4 in mp4_files:
-                        console.print(f" - [bold blue]{mp4}[/bold blue]")
-        
         progress.stop()
 
 if __name__ == '__main__':
