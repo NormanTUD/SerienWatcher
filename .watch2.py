@@ -312,6 +312,78 @@ class TestMainFunctions(unittest.TestCase):
         update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
         mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
 
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_mp4_files_non_mp4_files(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['file1.txt', 'file2.jpg']
+        mock_isdir.return_value = True
+        mock_isfile = MagicMock(return_value=False)
+        
+        with patch('os.path.isfile', mock_isfile):
+            result = find_mp4_files('/dummy_dir')
+            self.assertEqual(len(result), 0)
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_case_insensitive(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['seriesA', 'SeriesB']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('SeriesA', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/seriesA')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_multiple_matches(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['SeriesA', 'SeriesA-extended']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('SeriesA', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/SeriesA')
+
+    @patch('builtins.open', new_callable=mock_open)
+    def test_update_db_file_with_existing_entry(self, mock_open):
+        mock_file = mock_open.return_value.__enter__.return_value
+        mock_file.read.return_value = 'file1.mp4\n'
+        
+        update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
+        mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
+
+    @patch('builtins.open', new_callable=mock_open)
+    def test_update_db_file_no_permission(self, mock_open):
+        mock_open.side_effect = PermissionError
+        
+        with self.assertRaises(PermissionError):
+            update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_with_spaces(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['Series A', 'Series B']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('Series A', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/Series A')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_special_characters(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['Series_A$', 'Series@B']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('Series_A$', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/Series_A$')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_ignore_case(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['seriesa', 'seriesb']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('SERIESA', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/seriesa')
+
+
 if __name__ == '__main__':
     try:
         main()
