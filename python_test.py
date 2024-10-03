@@ -13,12 +13,20 @@ import subprocess
 
 console = Console()
 
+parser = argparse.ArgumentParser(description='Process some options.')
+parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
+parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
+parser.add_argument('--serie', type=str, required=True, help='Set series name.')
+
+args = parser.parse_args()
+
 def error(message, exit_code=1):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(exit_code)
 
 def debug(message):
-    console.print(f"[bold yellow]Debug:[/bold yellow] {message}")
+    if args.debug:
+        console.print(f"[bold yellow]Debug:[/bold yellow] {message}")
 
 def find_mp4_files(directory):
     """Search for MP4 files in the specified directory."""
@@ -164,12 +172,6 @@ def play_video(video_path):
     return stdout.decode(), stderr.decode()
 
 def main():
-    parser = argparse.ArgumentParser(description='Process some options.')
-    parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
-    parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
-    parser.add_argument('--serie', type=str, required=True, help='Set series name.')
-
-    args = parser.parse_args()
 
     # Check if the main directory exists
     if not os.path.isdir(args.maindir):
