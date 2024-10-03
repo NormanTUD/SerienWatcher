@@ -9,6 +9,7 @@ import time
 from rich.console import Console
 from rich.progress import Progress
 from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
+import subprocess
 
 console = Console()
 
@@ -117,26 +118,12 @@ def select_mp4_file(mp4_files, db_entries):
     selection = random.choices(candidates, weights=weights, k=1)
     return selection[0][0]
 
-class VLC:
-    def __init__(self):
-        self.Player = Instance('--loop')
-    def addPlaylist(self, path):
-        self.mediaList = self.Player.media_list_new()
-        songs = os.listdir(path)
-        for s in songs:
-            self.mediaList.add_media(self.Player.media_new(os.path.join(path,s)))
-        self.listPlayer = self.Player.media_list_player_new()
-        self.listPlayer.set_media_list(self.mediaList)
-    def play(self):
-        self.listPlayer.play()
-    def next(self):
-        self.listPlayer.next()
-    def pause(self):
-        self.listPlayer.pause()
-    def previous(self):
-        self.listPlayer.previous()
-    def stop(self):
-        self.listPlayer.stop()
+def play_video(video_path):
+    # Starte den VLC-Player mit dem Video und der Option, VLC zu schließen, wenn das Video zu Ende ist
+    process = subprocess.Popen(['vlc', '--play-and-exit', '--fullscreen', video_path])
+    
+    # Warte, bis der VLC-Prozess beendet ist
+    process.wait()
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
@@ -176,6 +163,7 @@ def main():
     # Start VLC with the selected file
     console.print(f"[bold blue]Starting VLC for:[/bold blue] {selected_file}")
 
+    play_video(selected_file)
 
 if __name__ == '__main__':
     try:
