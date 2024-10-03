@@ -2,4 +2,4 @@
 
 source .shellscript_functions
 
-python3 python_test.py
+python3 python_test.py $*
