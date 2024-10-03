@@ -113,25 +113,44 @@ def update_db_file(db_file_path, mp4_file, unix_time):
 def select_mp4_file(mp4_files, db_entries, last_played=None):
     """Selects an MP4 file based on Unix times, ensuring the last played is not repeated."""
     candidates = []
+
+    # Normalisiere den letzten Dateinamen, um Fehler zu vermeiden
+    normalized_last_played = last_played.replace('/', '').replace('\\', '') if last_played else None
+
+    # Durchlaufe alle MP4-Dateien und baue die Kandidatenliste
     for mp4_file in mp4_files:
         normalized_path = mp4_file.replace('/', '').replace('\\', '')  # Normalize the path
-        if normalized_path not in db_entries:  # No entry present
-            return mp4_file  # Return immediately if no entry exists
-        if last_played and last_played == mp4_file:
-            continue  # Skip the last played file
+
+        # Überprüfe, ob es keinen Eintrag gibt
+        if normalized_path not in db_entries:
+            debug(f"No entry found for: {mp4_file}")  # Debugging-Ausgabe
+            continue
+
+        # Überprüfe, ob die Datei die zuletzt abgespielte ist
+        if normalized_last_played and normalized_last_played == normalized_path:
+            print(f"Skipping last played file: {mp4_file}")  # Debugging-Ausgabe
+            continue
+
         candidates.append((mp4_file, db_entries[normalized_path]))
 
     if not candidates:
         error("No new MP4 files available to play.", 3)
 
-    # Sort by Unix time (oldest first) and select randomly
-    candidates.sort(key=lambda x: x[1])  # Oldest first
-    weights = [1 / (time.time() - entry[1]) for entry in candidates]  # Weighting based on time
-    total_weight = sum(weights)
+    # Berechne die Gewichte basierend auf der Zeit seit dem letzten Abspielen
+    current_time = time.time()
+    weights = [current_time - entry[1] for entry in candidates]  # Zeit seit dem letzten Abspielen
 
-    # Select a file based on weighting
+    # Debugging-Ausgabe für die Kandidaten und ihre Gewichte
+    debug("Candidates and their weights:")
+    for candidate, weight in zip(candidates, weights):
+        debug(f"Candidate: {candidate[0]}, Weight: {weight}")
+
+    # Wähle eine Datei basierend auf den Gewichten aus
     selection = random.choices(candidates, weights=weights, k=1)
-    return selection[0][0]
+    selected_file = selection[0][0]
+    debug(f"Selected file: {selected_file}")  # Debugging-Ausgabe
+    return selected_file
+
 
 def play_video(video_path):
     # Start VLC player with the video and option to close VLC when the video ends
