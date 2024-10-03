@@ -17,6 +17,7 @@ parser = argparse.ArgumentParser(description='Process some options.')
 parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
 parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
 parser.add_argument('--serie', type=str, required=True, help='Set series name.')
+parser.add_argument('--staffel', type=int, required=True, help='Season.')
 
 args = parser.parse_args()
 
@@ -171,7 +172,6 @@ def play_video(video_path):
     return stdout.decode(), stderr.decode()
 
 def main():
-
     # Check if the main directory exists
     if not os.path.isdir(args.maindir):
         error(f"--maindir {args.maindir} not found")
