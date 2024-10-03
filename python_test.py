@@ -14,23 +14,59 @@ def error(message, exit_code=1):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(exit_code)
 
-def find_mp4_files(serie_path):
-    """ Suche nach mp4-Dateien im angegebenen Serienverzeichnis und seinen Unterordnern. """
+def find_mp4_files(serie_name, maindir):
+    """ Suche nach mp4-Dateien basierend auf dem Seriennamen im angegebenen Verzeichnis. """
     mp4_files = []
 
-    # Prüfen auf die existierende Serie im direkten Verzeichnis
+    # Suche nach dem genauen Verzeichnis
+    serie_path = os.path.join(maindir, serie_name)
     if os.path.isdir(serie_path):
-        mp4_files.extend([os.path.join(serie_path, f) for f in os.listdir(serie_path) if f.endswith('.mp4')])
+        # Suche nach mp4-Dateien in diesem Verzeichnis und dessen Unterverzeichnissen
+        for root, dirs, files in os.walk(serie_path):
+            mp4_files.extend([os.path.join(root, f) for f in files if f.endswith('.mp4')])
+    else:
+        print(f"{serie_path} not found")
 
-    # Suche nach Unterordnern
-    for root, dirs, files in os.walk(os.path.dirname(serie_path)):
-        if os.path.basename(root).lower() == os.path.basename(serie_path).lower():  # Exakte Übereinstimmung
-            continue  # Verhindert doppelte Überprüfung des gleichen Ordners
 
-        if os.path.basename(serie_path).lower() in root.lower():  # Substring-Übereinstimmung
+    # Suche nach Unterordnern, die den Seriennamen als Substring enthalten
+    for root, dirs, files in os.walk(maindir):
+        # Überprüfen, ob der Ordnername den Seriennamen als Substring enthält
+        if serie_name.lower() in os.path.basename(root).lower():
             mp4_files.extend([os.path.join(root, f) for f in files if f.endswith('.mp4')])
 
     return mp4_files
+
+def find_series_directory(serie_name, maindir):
+    """ Suche nach dem Serienverzeichnis im Hauptverzeichnis. """
+    exact_matches = []
+    substring_matches = []
+
+    # Durchsuche die Verzeichnisse im Hauptverzeichnis
+    for dir_name in os.listdir(maindir):
+        full_path = os.path.join(maindir, dir_name)
+
+        if os.path.isdir(full_path):
+            # Überprüfen auf exakte Übereinstimmung (case-sensitive)
+            if dir_name == serie_name:
+                exact_matches.append(full_path)
+            # Überprüfen auf exakte Übereinstimmung (case-insensitive)
+            elif dir_name.lower() == serie_name.lower():
+                exact_matches.append(full_path)
+            # Überprüfen auf Substring-Übereinstimmung (case-insensitive)
+            elif serie_name.lower() in dir_name.lower():
+                substring_matches.append(full_path)
+
+    # Überprüfen der gefundenen Übereinstimmungen
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+    elif len(exact_matches) > 1:
+        error(f"Mehrere exakte Übereinstimmungen gefunden: {exact_matches}", 5)
+    elif len(substring_matches) == 1:
+        return substring_matches[0]
+    elif len(substring_matches) > 1:
+        error(f"Mehrere Substring-Übereinstimmungen gefunden: {substring_matches}", 6)
+    
+    error("Kein passendes Serienverzeichnis gefunden.", 3)
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
@@ -45,22 +81,18 @@ def main():
     if not os.path.isdir(args.maindir):
         error(f"--maindir {args.maindir} not found")
 
-    # Define the series path
-    serie_path = os.path.join(args.maindir, args.serie)
-
-    # Ensure the series directory exists
-    if not os.path.isdir(serie_path):
-        error(f"Series directory {serie_path} does not exist.", 2)
+    # Define the series name
+    serie_name = find_series_directory(args.serie, args.maindir)
 
     # Find mp4 files
-    mp4_files = find_mp4_files(serie_path)
+    mp4_files = find_mp4_files(serie_name, args.maindir)
 
     # Handle cases based on found mp4 files
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
     elif len(mp4_files) > 1:
         # Sort by Levenshtein distance (example to a specific string, change as needed)
-        potential_matches = sorted(mp4_files, key=lambda x: levenshtein_distance(x.lower(), serie_path.lower()))
+        potential_matches = sorted(mp4_files, key=lambda x: levenshtein_distance(x.lower(), serie_name.lower()))
         error(f"Multiple matches found: {potential_matches}", 4)
     
     # Proceed with further logic using the found mp4 file if there's only one
