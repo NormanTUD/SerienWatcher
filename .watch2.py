@@ -10,6 +10,8 @@ from rich.console import Console
 from rich.progress import Progress
 from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
 import subprocess
+import unittest
+from unittest.mock import patch, mock_open, MagicMock
 
 db_entries = None
 
@@ -17,11 +19,12 @@ console = Console()
 
 parser = argparse.ArgumentParser(description='Process some options.')
 parser.add_argument('--debug', action='store_true', default=False, help='Enable debug mode.')
-parser.add_argument('--maindir', type=str, required=True, help='Set main directory.')
-parser.add_argument('--serie', type=str, required=True, help='Set series name.')
+parser.add_argument('--maindir', type=str, default="", help='Set main directory.')
+parser.add_argument('--serie', type=str, default="", help='Set series name.')
 parser.add_argument('--staffel', type=int, default=-1, help='Season.')
 parser.add_argument('--min_staffel', type=int, default=-1, help='Season.')
 parser.add_argument('--max_staffel', type=int, default=-1, help='Season.')
+parser.add_argument('--tests', default=False, action="store_true", help='Run tests.')
 
 args = parser.parse_args()
 
@@ -227,6 +230,16 @@ def play_video(video_path):
     return stdout.decode(), stderr.decode()
 
 def main():
+    if args.tests:
+        unittest.main()
+        sys.exit(0)
+    
+    if args.maindir == "":
+        console.print("[red]--maindir needs to be set[/red]")
+    
+    if args.serie == "":
+        console.print("[red]--serie needs to be set[/red]")
+    
     global db_entries
     # Check if the main directory exists
     if not os.path.isdir(args.maindir):
@@ -272,6 +285,47 @@ def main():
         else:
             console.print("[bold yellow]VLC was manually closed.[/bold yellow]")
             break  # Exit if VLC was closed manually
+
+
+class TestMainFunctions(unittest.TestCase):
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_mp4_files(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['1', '2', 'invalid']
+        mock_isdir.return_value = True
+        mock_isfile = MagicMock(return_value=True)
+        
+        with patch('os.path.isfile', mock_isfile):
+            result = find_mp4_files('/dummy_dir')
+            self.assertEqual(len(result), 0)  # No .mp4 files, but directories are checked
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['SeriesA', 'SeriesB', 'AnotherSeries']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('SeriesA', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/SeriesA')
+
+    @patch('builtins.open', new_callable=mock_open, read_data='file1.mp4:::123456789\nfile2.mp4:::987654321\n')
+    def test_load_db_file(self, mock_open):
+        result = load_db_file('/dummy_db_path/.db.txt')
+        self.assertEqual(result['file1.mp4'], 123456789)
+        self.assertEqual(result['file2.mp4'], 987654321)
+
+    @patch('builtins.open', new_callable=mock_open)
+    def test_update_db_file(self, mock_open):
+        update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
+        mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
+
+    @patch('random.choices', return_value=[('/path/to/file.mp4', 0)])
+    def test_select_mp4_file(self, mock_random):
+        mp4_files = ['/path/to/file.mp4']
+        db_entries = {'file2.mp4': 987654321}
+        
+        result = select_mp4_file(mp4_files, '/dummy_db_path/.db.txt')
+        self.assertEqual(result, '/path/to/file.mp4')
 
 if __name__ == '__main__':
     try:
