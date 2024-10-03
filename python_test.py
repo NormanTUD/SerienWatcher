@@ -100,6 +100,7 @@ def main():
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
 
+    print(mp4_files)
 
 if __name__ == '__main__':
     try:
