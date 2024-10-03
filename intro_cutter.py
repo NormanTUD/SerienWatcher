@@ -63,7 +63,7 @@ def main(args):
     hash_to_file = {}
 
     # Process each video file
-    with Progress() as progress:
+    with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Processing videos...", total=len(os.listdir(args.dir)))
         for video_file in os.listdir(args.dir):
             if video_file.endswith(".mp4"):
