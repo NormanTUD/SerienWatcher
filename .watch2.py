@@ -24,7 +24,6 @@ parser.add_argument('--serie', type=str, default="", help='Set series name.')
 parser.add_argument('--staffel', type=int, default=-1, help='Season.')
 parser.add_argument('--min_staffel', type=int, default=-1, help='Season.')
 parser.add_argument('--max_staffel', type=int, default=-1, help='Season.')
-parser.add_argument('--tests', default=False, action="store_true", help='Run tests.')
 
 args = parser.parse_args()
 
@@ -230,7 +229,7 @@ def play_video(video_path):
     return stdout.decode(), stderr.decode()
 
 def main():
-    if args.tests:
+    if os.getenv("tests"):
         unittest.main()
         sys.exit(0)
     
