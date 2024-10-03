@@ -18,7 +18,7 @@ def die(message):
 def extract_frames(video_path, output_dir):
     """Extract frames from the video using ffmpeg."""
     command = f"ffmpeg -i \"{video_path}\" -r 2 -to 00:02:00 \"{output_dir}/output_%04d.png\""
-    subprocess.run(command, shell=True, check=True)
+    subprocess.run(command, shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 def analyze_images(tmpdir):
     """Analyze images and return the last frame for each unique hash."""
