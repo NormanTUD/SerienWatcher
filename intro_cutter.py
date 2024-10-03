@@ -87,11 +87,14 @@ def main(args):
                 console.print(f"[green]{file} ::: {t}[/green]")
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
-    parser.add_argument("--dir", type=str, required=True, help="Directory containing video files.")
-    parser.add_argument("--tmp", type=str, default="./tmp", help="Temporary directory for extracted frames.")
+    try:
+        parser = argparse.ArgumentParser(description="Video frame extractor and image analyzer.")
+        parser.add_argument("--dir", type=str, required=True, help="Directory containing video files.")
+        parser.add_argument("--tmp", type=str, default="./tmp", help="Temporary directory for extracted frames.")
+        
+        args = parser.parse_args()
     
-    args = parser.parse_args()
-    
-    main(args)
-
+        main(args)
+    except KeyboardInterrupt:
+        print("You cancelled.")
+        sys.exit(0)
