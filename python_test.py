@@ -40,32 +40,27 @@ def find_mp4_files(directory):
     return mp4_files
 
 def find_series_directory(serie_name, maindir):
-    """ Suche nach dem Serienverzeichnis im Hauptverzeichnis. """
     exact_matches = []
     substring_matches = []
+    potential_matches = []
 
     with Progress(transient=True) as progress:
         task = progress.add_task("[cyan]Durchsuche Verzeichnisse...", total=len(os.listdir(maindir)))
-        
-        # Durchsuche die Verzeichnisse im Hauptverzeichnis
+
         for dir_name in os.listdir(maindir):
             full_path = os.path.join(maindir, dir_name)
-
             if os.path.isdir(full_path):
-                # Überprüfen auf exakte Übereinstimmung (case-sensitive)
                 if dir_name == serie_name:
                     exact_matches.append(full_path)
-                # Überprüfen auf exakte Übereinstimmung (case-insensitive)
                 elif dir_name.lower() == serie_name.lower():
                     exact_matches.append(full_path)
-                # Überprüfen auf Substring-Übereinstimmung (case-insensitive)
                 elif serie_name.lower() in dir_name.lower():
                     substring_matches.append(full_path)
+                else:
+                    potential_matches.append(dir_name)
 
-            # Fortschritt aktualisieren
             progress.update(task, advance=1)
 
-    # Überprüfen der gefundenen Übereinstimmungen
     if len(exact_matches) == 1:
         return exact_matches[0]
     elif len(exact_matches) > 1:
@@ -75,7 +70,13 @@ def find_series_directory(serie_name, maindir):
     elif len(substring_matches) > 1:
         error(f"Mehrere Substring-Übereinstimmungen gefunden: {substring_matches}", 6)
 
+    # Suggest closest match using Levenshtein distance
+    if potential_matches:
+        closest_match = min(potential_matches, key=lambda x: levenshtein_distance(x.lower(), serie_name.lower()))
+        error(f"Kein passendes Serienverzeichnis gefunden. Nahegelegene Übereinstimmung: {closest_match}", 3)
+
     error("Kein passendes Serienverzeichnis gefunden.", 3)
+
 
 def main():
     parser = argparse.ArgumentParser(description='Process some options.')
