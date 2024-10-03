@@ -401,6 +401,40 @@ class TestMainFunctions(unittest.TestCase):
         with self.assertRaises(SystemExit):
             find_series_directory('SeriesA', '/dummy_maindir')
 
+    @patch('builtins.open', new_callable=mock_open)
+    def test_update_db_file_with_new_entry(self, mock_open):
+        mock_file = mock_open.return_value.__enter__.return_value
+        mock_file.read.return_value = ''
+        
+        update_db_file('/dummy_db_path/.db.txt', 'file2.mp4', 987654321)
+        mock_file.write.assert_called_with('file2.mp4:::987654321\n')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_mp4_files_invalid_path(self, mock_isdir, mock_listdir):
+        mock_isdir.return_value = False
+        with self.assertRaises(FileNotFoundError):
+            find_mp4_files('/invalid_dir')
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_mp4_files_with_mp4(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = ['video1.mp4', 'video2.mp4']
+        mock_isdir.return_value = True
+        mock_isfile = MagicMock(side_effect=lambda f: f.endswith('.mp4'))
+        
+        with patch('os.path.isfile', mock_isfile):
+            result = find_mp4_files('/dummy_dir')
+            self.assertEqual(len(result), 2)
+
+    @patch('os.listdir')
+    @patch('os.path.isdir')
+    def test_find_series_directory_ignore_leading_whitespace(self, mock_isdir, mock_listdir):
+        mock_listdir.return_value = [' SeriesA', 'SeriesB']
+        mock_isdir.return_value = True
+        
+        result = find_series_directory('SeriesA', '/dummy_maindir')
+        self.assertEqual(result, '/dummy_maindir/ SeriesA')
 
 if __name__ == '__main__':
     try:
