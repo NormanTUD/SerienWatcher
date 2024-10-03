@@ -21,7 +21,8 @@ class MainApp(App):
 
     def compose(self) -> ComposeResult:
         yield Static("Series Name:")
-        yield Input(placeholder="Enter Series Name", name="series_input", on_change=self.on_series_input_change)
+        input_widget = Input(placeholder="Enter Series Name", name="series_input")
+        yield input_widget
         yield Static("Available Series:")
         
         # Create the ListView without items initially
@@ -30,6 +31,9 @@ class MainApp(App):
 
         yield Button("Submit", id="submit_button")
 
+        # Correctly attach the event listener for input changes
+        self.bind("change", self.on_series_input_change)
+     
     async def on_mount(self) -> None:
         # Populate series names once the app is mounted
         self.series_names = self.get_available_series()
@@ -122,6 +126,7 @@ def main():
     # Set the dbfile path based on maindir
     options['dbfile'] = os.path.join(options['maindir'], ".db.txt")
 
+    sys.exit(0)
     # Search for directories that only contain numbers and list mp4 files
     with Progress() as progress:
         task = progress.add_task("[cyan]Searching for directories...[/cyan]", total=None)
