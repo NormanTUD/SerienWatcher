@@ -43,24 +43,26 @@ def find_mp4_files(directory):
         
         for season in seasons:
             debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
-            no_staffel_or_staffel_matches = (args.staffel == -1 or args.staffel == int(season))
-            no_max_staffel_or_staffel_matches = (args.max_staffel != -1 or args.max_staffel <= int(season))
-            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or args.min_staffel >= int(season))
-                                                 
-            if no_staffel_or_staffel_matches or (no_max_staffel_or_staffel_matches and no_min_staffel_or_staffel_matches):
+            no_staffel_or_staffel_matches = (args.staffel == -1 or (args.staffel == int(season) and not args.max_staffel and not args.min_staffel))
+            no_max_staffel_or_staffel_matches = (args.max_staffel != -1 or (args.staffel == -1 and args.max_staffel <= int(season)))
+            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or (args.staffel == -1 and args.min_staffel >= int(season)))
+
+            staffel_matches = no_staffel_or_staffel_matches or (no_max_staffel_or_staffel_matches and no_min_staffel_or_staffel_matches)
+
+            print(f"staffel_matches {season}: {staffel_matches}, no_staffel_or_staffel_matches: {no_staffel_or_staffel_matches}, no_min_staffel_or_staffel_matches: {no_min_staffel_or_staffel_matches}, no_max_staffel_or_staffel_matches: {no_max_staffel_or_staffel_matches}")
+
+            if staffel_matches:
                 season_path = os.path.join(directory, season)
-                print(f"!!! season_path: {season_path}")
                 sys.exit(0)
                 if not os.path.isdir(season_path):
                     console.print(f"[bold yellow]Warning:[/bold yellow] {season_path} is not a directory.")
-                    continue
-                
-                for file_name in os.listdir(season_path):
-                    full_path = os.path.join(season_path, file_name)
-                    if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
-                        mp4_files.append(full_path)
-                    else:
-                        debug(f"{full_path} not found")
+                else:
+                    for file_name in os.listdir(season_path):
+                        full_path = os.path.join(season_path, file_name)
+                        if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
+                            mp4_files.append(full_path)
+                        else:
+                            debug(f"{full_path} not found")
 
             # Update progress
             progress.update(task, advance=1)
