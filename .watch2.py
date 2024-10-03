@@ -258,7 +258,7 @@ def main():
         if normalized_path not in db_entries:
             current_time = int(time.time())
             update_db_file(db_file_path, selected_file, current_time)
-            console.print(f"[bold green]Added new entry for:[/bold green] {selected_file} with time {current_time}")
+            debug(f"[bold green]Added new entry for:[/bold green] {selected_file} with time {current_time}")
 
         # Start VLC with the selected file
         console.print(f"[bold blue]vlc[/bold blue] '[italic green]{selected_file}[/italic green]'")
