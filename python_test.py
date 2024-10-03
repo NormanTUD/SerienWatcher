@@ -90,11 +90,9 @@ def main():
     # Handle cases based on found mp4 files
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
-    elif len(mp4_files) > 1:
-        # Sort by Levenshtein distance (example to a specific string, change as needed)
-        potential_matches = sorted(mp4_files, key=lambda x: levenshtein_distance(x.lower(), serie_name.lower()))
-        error(f"Multiple matches found: {potential_matches}", 4)
-    
+    else:
+        print(mp4_files)
+        
     # Proceed with further logic using the found mp4 file if there's only one
     mp4_file = mp4_files[0]
     console.print(f"Found mp4 file: [bold blue]{mp4_file}[/bold blue]")
