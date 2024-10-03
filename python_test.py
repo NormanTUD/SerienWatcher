@@ -6,7 +6,7 @@ import vlc
 import argparse
 from rich.console import Console
 from rich.progress import Progress
-import subprocess
+import whiptail
 
 console = Console()
 
@@ -17,12 +17,10 @@ def error(message, exit_code=1):
 def ask_for_series_name():
     try:
         # Use whiptail to ask for the series name
-        result = subprocess.run(
-            ['whiptail', '--inputbox', 'Enter the series name:', '10', '60', ''],
-            capture_output=True,
-            text=True
-        )
-        return result.stdout.strip()  # Return the input
+        series_name = whiptail.inputbox("Enter the series name:")
+        if not series_name:  # Check if the input is empty
+            error("Series name cannot be empty.")
+        return series_name.strip()  # Return the input
     except Exception as e:
         error(f"Failed to get input: {e}")
 
@@ -77,4 +75,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
