@@ -14,26 +14,27 @@ def error(message, exit_code=1):
     console.print(f"[bold red]Error:[/bold red] {message}")
     sys.exit(exit_code)
 
-def find_mp4_files(serie_name, maindir):
-    """ Suche nach mp4-Dateien basierend auf dem Seriennamen im angegebenen Verzeichnis. """
+def find_mp4_files(directory):
+    """ Suche nach MP4-Dateien im angegebenen Verzeichnis. """
     mp4_files = []
 
-    # Suche nach dem genauen Verzeichnis
-    serie_path = os.path.join(maindir, serie_name)
-    if os.path.isdir(serie_path):
-        # Suche nach mp4-Dateien in diesem Verzeichnis und dessen Unterverzeichnissen
-        for root, dirs, files in os.walk(serie_path):
-            mp4_files.extend([os.path.join(root, f) for f in files if f.endswith('.mp4')])
-    else:
-        print(f"{serie_path} not found")
+    with Progress(transient=True) as progress:
+        task = progress.add_task("[cyan]Durchsuche nach MP4-Dateien...", total=len(os.listdir(directory)))
+        
+        # Durchsuche die Dateien im angegebenen Verzeichnis
+        for file_name in os.listdir(directory):
+            full_path = os.path.join(directory, file_name)
 
+            if os.path.isfile(full_path) and file_name.lower().endswith('.mp4'):
+                mp4_files.append(full_path)
 
-    # Suche nach Unterordnern, die den Seriennamen als Substring enthalten
-    for root, dirs, files in os.walk(maindir):
-        # Überprüfen, ob der Ordnername den Seriennamen als Substring enthält
-        if serie_name.lower() in os.path.basename(root).lower():
-            mp4_files.extend([os.path.join(root, f) for f in files if f.endswith('.mp4')])
+            # Fortschritt aktualisieren
+            progress.update(task, advance=1)
 
+    # Überprüfen der gefundenen MP4-Dateien
+    if len(mp4_files) == 0:
+        error("Keine MP4-Dateien gefunden.", 3)
+    
     return mp4_files
 
 def find_series_directory(serie_name, maindir):
@@ -41,20 +42,26 @@ def find_series_directory(serie_name, maindir):
     exact_matches = []
     substring_matches = []
 
-    # Durchsuche die Verzeichnisse im Hauptverzeichnis
-    for dir_name in os.listdir(maindir):
-        full_path = os.path.join(maindir, dir_name)
+    with Progress(transient=True) as progress:
+        task = progress.add_task("[cyan]Durchsuche Verzeichnisse...", total=len(os.listdir(maindir)))
+        
+        # Durchsuche die Verzeichnisse im Hauptverzeichnis
+        for dir_name in os.listdir(maindir):
+            full_path = os.path.join(maindir, dir_name)
 
-        if os.path.isdir(full_path):
-            # Überprüfen auf exakte Übereinstimmung (case-sensitive)
-            if dir_name == serie_name:
-                exact_matches.append(full_path)
-            # Überprüfen auf exakte Übereinstimmung (case-insensitive)
-            elif dir_name.lower() == serie_name.lower():
-                exact_matches.append(full_path)
-            # Überprüfen auf Substring-Übereinstimmung (case-insensitive)
-            elif serie_name.lower() in dir_name.lower():
-                substring_matches.append(full_path)
+            if os.path.isdir(full_path):
+                # Überprüfen auf exakte Übereinstimmung (case-sensitive)
+                if dir_name == serie_name:
+                    exact_matches.append(full_path)
+                # Überprüfen auf exakte Übereinstimmung (case-insensitive)
+                elif dir_name.lower() == serie_name.lower():
+                    exact_matches.append(full_path)
+                # Überprüfen auf Substring-Übereinstimmung (case-insensitive)
+                elif serie_name.lower() in dir_name.lower():
+                    substring_matches.append(full_path)
+
+            # Fortschritt aktualisieren
+            progress.update(task, advance=1)
 
     # Überprüfen der gefundenen Übereinstimmungen
     if len(exact_matches) == 1:
@@ -65,7 +72,7 @@ def find_series_directory(serie_name, maindir):
         return substring_matches[0]
     elif len(substring_matches) > 1:
         error(f"Mehrere Substring-Übereinstimmungen gefunden: {substring_matches}", 6)
-    
+
     error("Kein passendes Serienverzeichnis gefunden.", 3)
 
 def main():
@@ -85,19 +92,12 @@ def main():
     serie_name = find_series_directory(args.serie, args.maindir)
 
     # Find mp4 files
-    mp4_files = find_mp4_files(serie_name, args.maindir)
+    mp4_files = find_mp4_files(os.path.join(serie_name, args.maindir))
 
     # Handle cases based on found mp4 files
     if len(mp4_files) == 0:
         error("No .mp4 files found.", 3)
-    else:
-        print(mp4_files)
-        
-    # Proceed with further logic using the found mp4 file if there's only one
-    mp4_file = mp4_files[0]
-    console.print(f"Found mp4 file: [bold blue]{mp4_file}[/bold blue]")
 
-    # Here you can implement the VLC player logic if needed
 
 if __name__ == '__main__':
     try:
