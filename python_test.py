@@ -45,7 +45,7 @@ def find_mp4_files(directory):
             debug(f"find_mp4_files: .staffel: {args.staffel}, season = {season}")
             no_staffel_or_staffel_matches = (args.staffel == -1 or args.staffel == int(season))
             no_max_staffel_or_staffel_matches = (args.max_staffel != -1 or args.max_staffel <= int(season))
-            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or args.min_staffel >= int(season)
+            no_min_staffel_or_staffel_matches = (args.min_staffel != -1 or args.min_staffel >= int(season))
                                                  
             if no_staffel_or_staffel_matches or (no_max_staffel_or_staffel_matches and no_min_staffel_or_staffel_matches)):
                 season_path = os.path.join(directory, season)
