@@ -91,19 +91,34 @@ def load_db_file(db_file_path):
         return {}
 
     db_entries = {}
+    
+    # Temporäre Speicherung der Einträge
+    temp_entries = {}
+
+    # Lese die DB-Datei und normalisiere die Pfade
     with open(db_file_path, 'r') as db_file:
         for line in db_file:
             path, unix_time = line.strip().split(':::')
-            # Normalize the path by removing slashes variations
+            # Normalisiere den Pfad, indem slashes entfernt werden
             normalized_path = path.replace('/', '').replace('\\', '')  # Remove slashes
-            if normalized_path in db_entries:
-                # Keep the entry with the latest timestamp
-                if db_entries[normalized_path] < int(unix_time):
-                    db_entries[normalized_path] = int(unix_time)
+            if normalized_path in temp_entries:
+                # Behalte den Eintrag mit dem neuesten Zeitstempel
+                if temp_entries[normalized_path] < int(unix_time):
+                    temp_entries[normalized_path] = int(unix_time)
             else:
-                db_entries[normalized_path] = int(unix_time)
+                temp_entries[normalized_path] = int(unix_time)
+
+    # Aktualisiere db_entries mit den normalisierten Pfaden
+    for normalized_path, unix_time in temp_entries.items():
+        db_entries[normalized_path] = unix_time
+
+    # Schreibe die normalisierten Einträge zurück in die Datei
+    with open(db_file_path, 'w') as db_file:
+        for normalized_path, unix_time in db_entries.items():
+            db_file.write(f"{normalized_path}:::{unix_time}\n")
 
     return db_entries
+
 
 def update_db_file(db_file_path, mp4_file, unix_time):
     """Updates the .db.txt file with the new entry."""
