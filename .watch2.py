@@ -146,7 +146,6 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     """Selects an MP4 file based on Unix times, ensuring the last played is not repeated."""
     candidates = []
 
-    # Normalisiere den letzten Dateinamen, um Fehler zu vermeiden
     normalized_last_played = last_played.replace('/', '').replace('\\', '') if last_played else None
 
     # Durchlaufe alle MP4-Dateien und baue die Kandidatenliste
@@ -191,11 +190,9 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     return selected_file
 
 def get_skip_value(filename, filepath):
-    """Gibt den Skip-Wert für den angegebenen Dateinamen zurück."""
     try:
         with open(filepath, 'r') as file:
             for line in file:
-                # Teile die Zeile in den Dateinamen und den Wert
                 parts = line.strip().split(' ::: ')
                 if len(parts) == 2:
                     file_name, skip_value = parts
@@ -204,7 +201,7 @@ def get_skip_value(filename, filepath):
                         return int(skip_value)  # Den Wert zurückgeben
         return None  # Wenn kein Wert gefunden wurde
     except FileNotFoundError:
-        debug(f"Die Datei {filepath} wurde nicht gefunden.")
+        debug(f"The file {filepath} was not found.")
         return None
 
 def play_video(video_path):
