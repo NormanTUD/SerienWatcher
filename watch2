@@ -52,9 +52,7 @@ fi
 source $SCRIPT_DIR/.shellscript_functions
 
 keep_idle &
-python3 $SCRIPT_DIR/.watch2.py $* &
-
-wait %2
+python3 $SCRIPT_DIR/.watch2.py $*
 
 kill %1
 }
