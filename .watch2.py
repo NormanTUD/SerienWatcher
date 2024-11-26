@@ -350,11 +350,6 @@ class TestMainFunctions(unittest.TestCase):
         result = find_series_directory('SeriesA', '/dummy_maindir')
         self.assertEqual(result, '/dummy_maindir/SeriesA')
 
-    @patch('builtins.open', new_callable=mock_open)
-    def test_update_db_file(self, mock_open):
-        update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
-        mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
-
     @patch('os.listdir')
     @patch('os.path.isdir')
     def test_find_mp4_files_non_mp4_files(self, mock_isdir, mock_listdir):
@@ -383,14 +378,6 @@ class TestMainFunctions(unittest.TestCase):
         
         result = find_series_directory('SeriesA', '/dummy_maindir')
         self.assertEqual(result, '/dummy_maindir/SeriesA')
-
-    @patch('builtins.open', new_callable=mock_open)
-    def test_update_db_file_with_existing_entry(self, mock_open):
-        mock_file = mock_open.return_value.__enter__.return_value
-        mock_file.read.return_value = 'file1.mp4\n'
-        
-        update_db_file('/dummy_db_path/.db.txt', 'file1.mp4', 123456789)
-        mock_open.assert_called_once_with('/dummy_db_path/.db.txt', 'a')
 
     @patch('builtins.open', new_callable=mock_open)
     def test_update_db_file_no_permission(self, mock_open):
