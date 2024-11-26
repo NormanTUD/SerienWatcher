@@ -162,7 +162,7 @@ def clean_db_file(db_file_path):
             unix_time = int(unix_time)
 
             # Speichere nur den Eintrag mit dem neuesten unix_time
-            if mp4_file not in latest_entries or unix_time > latest_entries[mp4_file][1]:
+            if mp4_file not in latest_entries or unix_time > latest_entries[mp4_file]:
                 latest_entries[mp4_file] = unix_time
 
     # Datei mit bereinigten Einträgen überschreiben
