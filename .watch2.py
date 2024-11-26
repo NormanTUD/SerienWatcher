@@ -221,7 +221,7 @@ def update_db_file(db_file_path, mp4_file, unix_time):
 
     """Updates the .db.txt file with the new entry."""
     with open(db_file_path, 'a') as db_file:
-        db_file.write(f"{mp4_file}:::{unix_time}\n")
+        db_file.write(f"\"{mp4_file}\":::{unix_time}\n")
 
 def select_mp4_file(mp4_files, db_file_path, last_played=None):
     global db_entries
