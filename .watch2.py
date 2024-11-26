@@ -201,6 +201,7 @@ def clean_db_file(db_file_path):
         debug(f"Opening {db_file_path} for writing.")
         with open(db_file_path, 'w') as db_file:
             for entry, unix_time in latest_entries.items():
+                entry = entry.replace('"', '')
                 new_line = f'"{entry}":::{unix_time}\n'
                 debug(f"Writing line: {new_line.strip()}")
                 db_file.write(new_line)
