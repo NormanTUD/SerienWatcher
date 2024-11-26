@@ -191,6 +191,7 @@ def clean_db_file(db_file_path):
         else:
             print(f"[WARNING] Ignoring malformed line {idx}: {line.strip()}")
 
+    old_umask = os.umask(0)
     # Bereinigte Datei schreiben
     try:
         debug(f"Checking write permissions for {db_file_path}.")
@@ -209,6 +210,8 @@ def clean_db_file(db_file_path):
     except Exception as e:
         print(f"[ERROR] Unexpected error while writing {db_file_path}: {e}")
         sys.exit(6)
+    finally:
+        os.umask(old_umask)
 
     debug(f"Successfully cleaned and updated {db_file_path}.")
 
