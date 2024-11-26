@@ -6,12 +6,17 @@ import vlc
 import argparse
 import random
 import time
+from pprint import pprint
 from rich.console import Console
 from rich.progress import Progress
 from Levenshtein import distance as levenshtein_distance  # Import Levenshtein library
 import subprocess
 import unittest
 from unittest.mock import patch, mock_open, MagicMock
+
+def dier (msg):
+    pprint(msg)
+    sys.exit(10)
 
 db_entries = None
 
@@ -135,7 +140,46 @@ def load_db_file(db_file_path):
 
     return _db_entries
 
+def clean_db_file(db_file_path):
+    if not os.path.exists(db_file_path):
+        open(db_file_path, 'w').close()  # Erstelle die Datei, falls sie nicht existiert
+        return
+    
+    """Cleans the .db.txt file, keeping only the newest entry for each mp4_file."""
+    try:
+        with open(db_file_path, 'r') as db_file:
+            lines = db_file.readlines()
+    except FileNotFoundError:
+        # Datei existiert nicht, nichts zu bereinigen
+        return
+
+    # Map zur Speicherung des neuesten Eintrags für jede mp4_file
+    latest_entries = {}
+
+    for line in lines:
+        if ":::" in line:
+            mp4_file, unix_time = line.strip().split(":::")
+            unix_time = int(unix_time)
+
+            # Speichere nur den Eintrag mit dem neuesten unix_time
+            if mp4_file not in latest_entries or unix_time > latest_entries[mp4_file][1]:
+                latest_entries[mp4_file] = unix_time
+
+    # Datei mit bereinigten Einträgen überschreiben
+    try:
+        debug(f"Trying to open {db_file_path}")
+        with open(db_file_path, 'w') as db_file:
+            for entry in latest_entries.keys():
+                new_line = f"{entry}:::" + str(latest_entries[entry]) + "\n"
+                debug("updating {db_file_path} with {new_line}")
+                db_file.write(new_line)
+    except PermissionError as e:
+        print(f"Error: {e}")
+        sys.exit(5)
+
 def update_db_file(db_file_path, mp4_file, unix_time):
+    clean_db_file(db_file_path)
+
     """Updates the .db.txt file with the new entry."""
     with open(db_file_path, 'a') as db_file:
         db_file.write(f"{mp4_file}:::{unix_time}\n")
