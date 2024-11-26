@@ -170,7 +170,7 @@ def clean_db_file(db_file_path):
         debug(f"Trying to open {db_file_path}")
         with open(db_file_path, 'w') as db_file:
             for entry in latest_entries.keys():
-                new_line = f"{entry}:::" + str(latest_entries[entry]) + "\n"
+                new_line = f'"{entry}":::' + str(latest_entries[entry]) + "\n"
                 debug("updating {db_file_path} with {new_line}")
                 db_file.write(new_line)
     except PermissionError as e:
