@@ -174,7 +174,7 @@ def clean_db_file(db_file_path):
                 debug("updating {db_file_path} with {new_line}")
                 db_file.write(new_line)
     except PermissionError as e:
-        print(f"Error: {e}")
+        print(f"Error trying to update the {db_file_path}: {e}")
         sys.exit(5)
 
 def update_db_file(db_file_path, mp4_file, unix_time):
