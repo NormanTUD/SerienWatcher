@@ -141,44 +141,76 @@ def load_db_file(db_file_path):
     return _db_entries
 
 def clean_db_file(db_file_path):
-    if not os.path.exists(db_file_path):
-        open(db_file_path, 'w').close()  # Erstelle die Datei, falls sie nicht existiert
-        return
-    
     """Cleans the .db.txt file, keeping only the newest entry for each mp4_file."""
+    # Überprüfen, ob der Dateipfad gültig ist
+    debug(f"Starting to clean {db_file_path}")
+    if not db_file_path or not isinstance(db_file_path, str):
+        raise ValueError(f"Invalid file path: {db_file_path}")
+
+    # Datei erstellen, falls sie nicht existiert
+    if not os.path.exists(db_file_path):
+        try:
+            debug(f"File {db_file_path} does not exist. Creating it.")
+            open(db_file_path, 'w').close()
+        except Exception as e:
+            print(f"[ERROR] Unable to create {db_file_path}: {e}")
+            sys.exit(1)
+        return
+
+    # Überprüfen, ob die Datei lesbar ist
+    if not os.access(db_file_path, os.R_OK):
+        print(f"[ERROR] File {db_file_path} is not readable.")
+        sys.exit(2)
+
+    # Dateiinhalt einlesen
     try:
+        debug(f"Opening {db_file_path} for reading.")
         with open(db_file_path, 'r') as db_file:
             lines = db_file.readlines()
+            debug(f"Read {len(lines)} lines from {db_file_path}.")
     except FileNotFoundError:
-        # Datei existiert nicht, nichts zu bereinigen
+        print(f"[WARNING] File {db_file_path} not found. Nothing to clean.")
         return
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while reading {db_file_path}: {e}")
+        sys.exit(3)
 
     # Map zur Speicherung des neuesten Eintrags für jede mp4_file
     latest_entries = {}
-
-    for line in lines:
+    for idx, line in enumerate(lines):
+        debug(f"Processing line {idx}: {line.strip()}")
         if ":::" in line:
-            mp4_file, unix_time = line.strip().split(":::")
-            unix_time = int(unix_time)
+            try:
+                mp4_file, unix_time = line.strip().split(":::")
+                unix_time = int(unix_time)
+                if mp4_file not in latest_entries or unix_time > latest_entries[mp4_file]:
+                    debug(f"Updating latest entry for {mp4_file} to {unix_time}.")
+                    latest_entries[mp4_file] = unix_time
+            except ValueError as e:
+                print(f"[WARNING] Malformed line {idx}: {line.strip()}. Error: {e}")
+        else:
+            print(f"[WARNING] Ignoring malformed line {idx}: {line.strip()}")
 
-            # Speichere nur den Eintrag mit dem neuesten unix_time
-            if mp4_file not in latest_entries or unix_time > latest_entries[mp4_file]:
-                latest_entries[mp4_file] = unix_time
-
-    # Datei mit bereinigten Einträgen überschreiben
+    # Bereinigte Datei schreiben
     try:
+        debug(f"Checking write permissions for {db_file_path}.")
         if not os.access(db_file_path, os.W_OK):
-            raise PermissionError(f"File is not writable: {db_file_path}")
+            raise PermissionError(f"File {db_file_path} is not writable.")
 
-        debug(f"Trying to open {db_file_path}")
+        debug(f"Opening {db_file_path} for writing.")
         with open(db_file_path, 'w') as db_file:
-            for entry in latest_entries.keys():
-                new_line = f'"{entry}":::' + str(latest_entries[entry]) + "\n"
-                debug("updating {db_file_path} with {new_line}")
+            for entry, unix_time in latest_entries.items():
+                new_line = f'"{entry}":::{unix_time}\n'
+                debug(f"Writing line: {new_line.strip()}")
                 db_file.write(new_line)
     except PermissionError as e:
-        print(f"Error trying to update the {db_file_path}: {e}")
+        print(f"[ERROR] Permission error while writing {db_file_path}: {e}")
         sys.exit(5)
+    except Exception as e:
+        print(f"[ERROR] Unexpected error while writing {db_file_path}: {e}")
+        sys.exit(6)
+
+    debug(f"Successfully cleaned and updated {db_file_path}.")
 
 def update_db_file(db_file_path, mp4_file, unix_time):
     clean_db_file(db_file_path)
