@@ -336,7 +336,7 @@ def main():
         error("No .mp4 files found.", 3)
 
     # Load existing entries from .db.txt
-    db_file_path = os.path.join(args.maindir, '.db.txt')
+    db_file_path = os.path.join(os.getenv("HOME"), '.db.txt')
     db_entries = load_db_file(db_file_path)
 
     last_played_file = None  # Track the last played file
