@@ -167,6 +167,9 @@ def clean_db_file(db_file_path):
 
     # Datei mit bereinigten Einträgen überschreiben
     try:
+        if not os.access(db_file_path, os.W_OK):
+            raise PermissionError(f"File is not writable: {db_file_path}")
+
         debug(f"Trying to open {db_file_path}")
         with open(db_file_path, 'w') as db_file:
             for entry in latest_entries.keys():
