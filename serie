@@ -19,11 +19,7 @@ function keep_idle {
 	while true; do
 		eval $(xdotool getmouselocation --shell)
 
-		IDLETIME=$(xprintidle)
-		IDLETIME=$(($IDLETIME/1000))
-		if [[ $IDLETIME -gt $SLEEPTIME ]]; then
-			xdotool mousemove $X $((Y-1))
-		fi
+		xdotool mousemove $X $((Y-1))
 
 		sleep $SLEEPTIME
 	done
