@@ -347,7 +347,7 @@ def main():
         selected_file = select_mp4_file(mp4_files, db_file_path, last_played_file)
 
         # Update the .db.txt file with the current Unix time if needed
-        normalized_path = selected_file.replace('//*', '/') # Normalize the path
+        normalized_path = os.path.normpath(selected_file).replace('/', '').replace('\\', '')
         if normalized_path not in db_entries:
             current_time = int(time.time())
             update_db_file(db_file_path, selected_file, current_time)
