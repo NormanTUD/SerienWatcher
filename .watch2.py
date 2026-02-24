@@ -229,28 +229,23 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     """Selects an MP4 file based on Unix times, ensuring the last played is not repeated."""
     candidates = []
 
-    normalized_last_played = last_played.replace('/', '').replace('\\', '') if last_played else None
+    normalized_last_played = os.path.normpath(last_played) if last_played else None
 
     # Durchlaufe alle MP4-Dateien und baue die Kandidatenliste
     for mp4_file in mp4_files:
-        normalized_path = mp4_file #.replace('/', '').replace('\\', '')  # Normalize the path
-
-        # Überprüfe, ob es keinen Eintrag gibt
-        if normalized_path not in db_entries and normalized_last_played and normalized_last_played == normalized_path:
-            debug(f"No entry found for: {mp4_file}. Directly using it.")  # Debugging-Ausgabe
-            current_time = int(time.time())
-            update_db_file(db_file_path, mp4_file, current_time)
-            
-            db_entries = load_db_file(db_file_path)
-            return mp4_file
+        normalized_path = os.path.normpath(mp4_file)
 
         # Überprüfe, ob die Datei die zuletzt abgespielte ist
         if normalized_last_played and normalized_last_played == normalized_path:
-            debug(f"Skipping last played file: {mp4_file}")  # Debugging-Ausgabe
+            debug(f"Skipping last played file: {mp4_file}")
             continue
 
         if os.path.exists(mp4_file):
-            candidates.append((mp4_file, 0))
+            # Look up the timestamp from db_entries using the same normalization
+            # that load_db_file uses
+            db_key = normalized_path.replace('/', '').replace('\\', '')
+            last_played_time = db_entries.get(db_key, 0)
+            candidates.append((mp4_file, last_played_time))
         else:
             debug(f"Cannot add {mp4_file}")
 
@@ -261,6 +256,10 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     current_time = time.time()
     weights = [current_time - entry[1] for entry in candidates]  # Zeit seit dem letzten Abspielen
 
+    # Ensure no zero or negative weights
+    min_weight = 1.0
+    weights = [max(w, min_weight) for w in weights]
+
     # Debugging-Ausgabe für die Kandidaten und ihre Gewichte
     debug("Candidates and their weights:")
     for candidate, weight in zip(candidates, weights):
@@ -269,7 +268,7 @@ def select_mp4_file(mp4_files, db_file_path, last_played=None):
     # Wähle eine Datei basierend auf den Gewichten aus
     selection = random.choices(candidates, weights=weights, k=1)
     selected_file = selection[0][0]
-    debug(f"Selected file: {selected_file}")  # Debugging-Ausgabe
+    debug(f"Selected file: {selected_file}")
     return selected_file
 
 def get_skip_value(filename, filepath):
