@@ -359,9 +359,16 @@ def main():
         # Play video and check output
         stdout, stderr = play_video(selected_file)
 
-        # Check if VLC exited correctly
+        # After VLC exited correctly:
         if "/dev/doesnt_exist" in stderr:
-            last_played_file = selected_file  # Update the last played file
+            last_played_file = selected_file
+            current_time = int(time.time())
+            # Update on disk
+            update_db_file(db_file_path, selected_file, current_time)
+            # Update in memory so weights are recalculated correctly
+            normalized_path = os.path.normpath(selected_file).replace('/', '').replace('\\', '')
+            db_entries[normalized_path] = current_time
+            debug(f"Updated entry for: {selected_file} with time {current_time}")
         else:
             console.print("[bold yellow]VLC was manually closed.[/bold yellow]")
             break  # Exit if VLC was closed manually
