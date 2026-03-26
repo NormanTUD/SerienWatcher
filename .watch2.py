@@ -121,7 +121,6 @@ def find_series_directory(serie_name: str, maindir: str) -> str:
     error("No suitable series directory found.", 3)
 
 def load_db_file(db_file_path):
-    """Loads the .db.txt file and returns a map with paths and Unix times."""
     if not os.path.isfile(db_file_path):
         return {}
 
@@ -129,10 +128,9 @@ def load_db_file(db_file_path):
     with open(db_file_path, 'r') as db_file:
         for line in db_file:
             path, unix_time = line.strip().split(':::')
-            # Normalize the path by removing slashes variations
-            normalized_path = path.replace('/', '').replace('\\', '')  # Remove slashes
+            path = path.strip('"')  # <-- ADD THIS LINE
+            normalized_path = path.replace('/', '').replace('\\', '')
             if normalized_path in _db_entries:
-                # Keep the entry with the latest timestamp
                 if _db_entries[normalized_path] < int(unix_time):
                     _db_entries[normalized_path] = int(unix_time)
             else:
@@ -225,51 +223,39 @@ def update_db_file(db_file_path, mp4_file, unix_time):
 
 def select_mp4_file(mp4_files, db_file_path, last_played=None):
     global db_entries
-    
-    """Selects an MP4 file based on Unix times, ensuring the last played is not repeated."""
     candidates = []
-
     normalized_last_played = os.path.normpath(last_played) if last_played else None
 
-    # Durchlaufe alle MP4-Dateien und baue die Kandidatenliste
     for mp4_file in mp4_files:
         normalized_path = os.path.normpath(mp4_file)
 
-        # Überprüfe, ob die Datei die zuletzt abgespielte ist
         if normalized_last_played and normalized_last_played == normalized_path:
             debug(f"Skipping last played file: {mp4_file}")
             continue
 
-        if os.path.exists(mp4_file):
-            # Look up the timestamp from db_entries using the same normalization
-            # that load_db_file uses
+        if os.path.exists(mp4_file):  # Verify file actually exists on disk
             db_key = normalized_path.replace('/', '').replace('\\', '')
             last_played_time = db_entries.get(db_key, 0)
             candidates.append((mp4_file, last_played_time))
         else:
-            debug(f"Cannot add {mp4_file}")
+            debug(f"File in list but not on disk, skipping: {mp4_file}")
 
     if not candidates:
         error("No new MP4 files available to play.", 3)
 
-    # Berechne die Gewichte basierend auf der Zeit seit dem letzten Abspielen
+    # Separate never-played files from previously-played ones
+    never_played = [c for c in candidates if c[1] == 0]
+    played_before = [c for c in candidates if c[1] != 0]
+
+    # Prioritize never-played files (e.g., 80% chance to pick from them if available)
+    if never_played and random.random() < 0.8:
+        return random.choice(never_played)[0]
+
+    # Otherwise, fall back to weighted selection from all candidates
     current_time = time.time()
-    weights = [current_time - entry[1] for entry in candidates]  # Zeit seit dem letzten Abspielen
-
-    # Ensure no zero or negative weights
-    min_weight = 1.0
-    weights = [max(w, min_weight) for w in weights]
-
-    # Debugging-Ausgabe für die Kandidaten und ihre Gewichte
-    debug("Candidates and their weights:")
-    for candidate, weight in zip(candidates, weights):
-        debug(f"Candidate: {candidate[0]}, Weight: {weight}")
-
-    # Wähle eine Datei basierend auf den Gewichten aus
+    weights = [max(current_time - entry[1], 1.0) for entry in candidates]
     selection = random.choices(candidates, weights=weights, k=1)
-    selected_file = selection[0][0]
-    debug(f"Selected file: {selected_file}")
-    return selected_file
+    return selection[0][0]
 
 def get_skip_value(filename, filepath):
     try:
